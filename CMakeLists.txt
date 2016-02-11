@@ -1,0 +1,60 @@
+
+PROJECT(echo)
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+
+SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
+SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
+
+SET(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -O3 -pthread")
+
+if (NOT ${U_CMAKE_BUILD_TYPE} MATCHES DEBUG)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -flto")
+endif()
+
+SET(LIBRARY_SOURCES src/message.cpp src/client.cpp src/debug.cpp)
+SET(DAEMON_SOURCES src/daemon.cpp src/routing.cpp src/message.cpp src/debug.cpp)
+
+SET(BUILD_DEBUG TRUE CACHE BOOL "Enable debug output")
+IF(BUILD_DEBUG)
+	ADD_DEFINITIONS(-DBUILD_DEBUG)
+ENDIF(BUILD_DEBUG)
+
+ADD_LIBRARY(echo SHARED ${LIBRARY_SOURCES})
+
+SET(BUILD_PYTHON TRUE CACHE BOOL "Enable Python support")
+IF(BUILD_PYTHON)
+    FIND_PATH(PYBIND11_INCLUDE_DIR pybind11.h HINTS /usr/local/include PATH_SUFFIXES pybind11 DOC "PyBind11 include directory")
+    FIND_PACKAGE(PythonLibs REQUIRED)
+    ADD_LIBRARY(pyecho SHARED src/python.cpp)
+    TARGET_LINK_LIBRARIES(pyecho echo ${PYTHON_LIBRARY})
+    SET_TARGET_PROPERTIES(pyecho PROPERTIES PREFIX "")
+    TARGET_INCLUDE_DIRECTORIES(pyecho PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR})
+ENDIF(BUILD_PYTHON)
+
+ADD_EXECUTABLE(echodaemon ${DAEMON_SOURCES})
+
+SET(BUILD_EXAMPLES TRUE CACHE BOOL "Enable Examples support")
+IF(BUILD_EXAMPLES)
+
+    ADD_EXECUTABLE(chat src/examples/chat.cpp)
+    TARGET_LINK_LIBRARIES(chat echo)
+    TARGET_INCLUDE_DIRECTORIES(chat PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+
+    ADD_EXECUTABLE(chat_ip src/examples/chat_internet.cpp)
+    TARGET_LINK_LIBRARIES(chat_ip echo)
+    TARGET_INCLUDE_DIRECTORIES(chat_ip PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+
+    ADD_EXECUTABLE(chunked src/examples/chunked.cpp)
+    TARGET_LINK_LIBRARIES(chunked echo)
+    TARGET_INCLUDE_DIRECTORIES(chunked PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+
+    FIND_PACKAGE(OpenCV REQUIRED core highgui)
+    ADD_EXECUTABLE(opencv src/examples/opencv.cpp)
+    TARGET_LINK_LIBRARIES(opencv echo ${OpenCV_LIBS})
+    TARGET_INCLUDE_DIRECTORIES(opencv PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${OpenCV_INCLUDE_DIR})
+
+ENDIF(BUILD_EXAMPLES)
+
+INSTALL(TARGETS echo LIBRARY DESTINATION lib)
+INSTALL(FILES src/client.h src/message.h src/datatypes.h DESTINATION include/echolib)
+

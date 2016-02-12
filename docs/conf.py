@@ -47,8 +47,8 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'echo'
-copyright = u'2015, ViCoS'
-author = u'ViCoS'
+copyright = u'2016, ViCoS Lab'
+author = u'ViCoS Lab'
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -222,7 +222,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-  (master_doc, 'echo.tex', u'echo Documentation',
+  (master_doc, 'echo.tex', u'EchoLib Documentation',
    u'ViCoS', 'manual'),
 ]
 
@@ -252,7 +252,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'echo', u'echo Documentation',
+    (master_doc, 'echo', u'EchoLib Documentation',
      [author], 1)
 ]
 
@@ -266,9 +266,9 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-  (master_doc, 'echo', u'echo Documentation',
-   author, 'echo', 'One line description of project.',
-   'Miscellaneous'),
+  (master_doc, 'echo', u'EchoLib Documentation',
+   author, 'echo', 'A simple and efficient interprocess communication (IPC) library.',
+   'IPC'),
 ]
 
 # Documents to append as an appendix to all manuals.

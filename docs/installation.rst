@@ -11,16 +11,18 @@ The core Echo system with bindings for c++ requires no additional dependencies. 
 
 Installation
 ------------
-First, create a new directory and download the project from Bitbucket::
+First, create a new directory and download the project from Github::
     
     mkdir project_directory_path
     cd project_directory_path
-    git clone https://bitbucket.org/UrbanSk/echolib
-    cd echolib
+    git clone https://github.com/vicoslab/echolib
 
 Then, use CMake to build the project::
     
-    cmake .
+    cd echolib
+    mkdir build
+    cd build
+    cmake ..
     make
 
 Running the examples

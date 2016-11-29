@@ -1,5 +1,7 @@
 /* -*- Mode: C++; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*- */
 
+#define WITH_THREAD
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
@@ -27,6 +29,9 @@ class PySubscriber : public Subscriber, public std::enable_shared_from_this<PySu
         callback(reader);
     }
 
+    using Subscriber::subscribe;
+    using Subscriber::unsubscribe;
+
   private:
 
     function<void(MessageReader)> callback;
@@ -37,10 +42,10 @@ class PyWatcher : public Watcher {
   public:
     using Watcher::Watcher;
 
-    virtual void on_event(SharedDictionary command) {
+    void on_event(SharedDictionary command) override {
         PYBIND11_OVERLOAD_PURE(
             void,
-            Subscriber,
+            Watcher,
             on_event,
             command
         );
@@ -49,8 +54,7 @@ class PyWatcher : public Watcher {
 
 PYBIND11_PLUGIN(pyecho) {
 
-    py::init_threading();
-    py::module m("pyecho", "Echo IPC library");
+    py::module m("pyecho", "Echo IPC library Python bindings");
 
     py::class_<Client, std::shared_ptr<Client> >(m, "Client")
     .def(py::init<string>())
@@ -61,7 +65,7 @@ PYBIND11_PLUGIN(pyecho) {
     }, "Wait for more messages")
     .def("isConnected", &Client::is_connected, "Check if the client is connected");
 
-    py::class_<PySubscriber, std::shared_ptr<PySubscriber> >(m, "Subscriber")
+    py::class_<Subscriber, PySubscriber, std::shared_ptr<Subscriber> >(m, "Subscriber")
     .def(py::init<SharedClient, string, string, function<void(MessageReader)> >())
     .def("subscribe", [](PySubscriber &a) {
         py::gil_scoped_release gil; // release GIL lock
@@ -72,7 +76,7 @@ PYBIND11_PLUGIN(pyecho) {
         return a.unsubscribe();
     }, "Stop receiving");
 
-    py::class_<PyWatcher, std::shared_ptr<PyWatcher> >(m, "Watcher")
+    py::class_<Watcher, PyWatcher, std::shared_ptr<Watcher> >(m, "Watcher")
     .def(py::init<SharedClient, string>())
     .def("subscribe", [](PyWatcher &a) {
         py::gil_scoped_release gil; // release GIL lock
@@ -94,7 +98,7 @@ PYBIND11_PLUGIN(pyecho) {
         return p.send_message(message);
     }, "Send a writer");
 
-    py::class_<BufferedMessage, std::shared_ptr<Message> >(m, "BufferedMessage")
+    py::class_<BufferedMessage, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
     .def(py::init<int, uchar*, int, bool>())
     .def(py::init<int, MessageWriter>())
     .def("getChannel", &BufferedMessage::get_channel, "Get channel");

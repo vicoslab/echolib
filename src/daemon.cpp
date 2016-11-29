@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netdb.h>
@@ -28,7 +29,6 @@ typedef struct statistics {
 
 } statistics;
 
-
 static int make_socket_non_blocking(int sfd) {
     int flags, s;
 
@@ -49,9 +49,11 @@ static int make_socket_non_blocking(int sfd) {
 }
 
 
-static bool set_buffer_size(int fd, int size) {
+static bool configure_socket(int fd, int size) {
     setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
     setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
+    //int set = 1;
+    //setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
     return true;
 }
 
@@ -79,7 +81,7 @@ static int create_and_bind(char *path) {
 
 }
 
-static int create_and_bind_IP(char* port) {
+static int create_and_bind_interface(char* port) {
 
     struct sockaddr_in hints;
     int s;
@@ -129,7 +131,6 @@ int main(int argc, char *argv[]) {
     int timeout = -1;
     Router router;
 
-
     if (argc != 2 && argc!=3) {
         fprintf(stderr, "Usage: %s [socket_path] or %s -i [port]\n", argv[0],argv[0]);
         exit(EXIT_FAILURE);
@@ -143,7 +144,7 @@ int main(int argc, char *argv[]) {
         //Port is the second argument
     } else {
         printf("Making internet socket\n");
-        sfd=create_and_bind_IP(argv[2]);
+        sfd=create_and_bind_interface(argv[2]);
     }
     if (sfd == -1)
         abort();
@@ -233,7 +234,7 @@ int main(int argc, char *argv[]) {
                         abort();
                     }
 
-                    set_buffer_size(infd, SOCKET_BUFFER_SIZE);
+                    configure_socket(infd, SOCKET_BUFFER_SIZE);
 
                     event.data.fd = infd;
                     event.events = EPOLLIN | EPOLLET;

@@ -3,6 +3,7 @@
 #include <err.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <algorithm>
@@ -479,7 +480,7 @@ bool StreamWriter::process_message() {
 
         if (buffer_position < buffer_length) {
             errno=0;
-            count = write(fd, &(buffer[buffer_position]), buffer_length - buffer_position);
+            count = send(fd, &(buffer[buffer_position]), buffer_length - buffer_position, MSG_NOSIGNAL);
 
             if (count == -1) {
 
@@ -538,15 +539,15 @@ int Message::get_channel() const {
 
 }
 
-BufferedMessage::BufferedMessage(int channel, uchar *data, ssize_t length, bool owned): Message(channel), MemoryBuffer(data, length, owned) {
+BufferedMessage::BufferedMessage(int channel, uchar *data, ssize_t length, bool owned): MemoryBuffer(data, length, owned), Message(channel) {
 
 }
 
-BufferedMessage::BufferedMessage(int channel, int length): Message(channel), MemoryBuffer(length) {
+BufferedMessage::BufferedMessage(int channel, int length): MemoryBuffer(length), Message(channel) {
 
 }
 
-BufferedMessage::BufferedMessage(int channel, MessageWriter& writer): Message(channel), MemoryBuffer(writer) {
+BufferedMessage::BufferedMessage(int channel, MessageWriter& writer): MemoryBuffer(writer), Message(channel) {
 
 }
 

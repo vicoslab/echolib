@@ -12,6 +12,7 @@
 #include <memory>
 #include <exception>
 #include <iostream>
+#include <type_traits>
 
 using namespace std;
 
@@ -116,7 +117,7 @@ class Message : public std::enable_shared_from_this<Message>, public virtual Buf
 /**
  * Message class
  */
-class BufferedMessage : virtual public Message, virtual public MemoryBuffer {
+class BufferedMessage : public Message, virtual public MemoryBuffer {
   public:
 
     BufferedMessage(int channel, uchar *data, ssize_t length, bool owned = true);
@@ -176,6 +177,13 @@ class MessageReader {
      */
     virtual ~MessageReader();
 
+    template<typename T> T read() {
+        static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported here");
+        T value;
+        copy_data((uchar *) &value, sizeof(T));
+        return value;
+    }
+
     /**
      * @return next integer
      */
@@ -220,6 +228,10 @@ class MessageReader {
 
 };
 
+template<> inline string MessageReader::read<string>() {
+    return read_string();
+}
+
 class MessageWriter {
     friend MemoryBuffer;
     friend MessageReader;
@@ -232,6 +244,14 @@ class MessageWriter {
     MessageWriter(ssize_t length);
 
     MessageWriter(uchar* buffer, ssize_t length);
+
+    template<typename T> void write(const T& value) {
+        
+        static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported here");
+        cout << sizeof(T) << endl;
+        write_buffer((uchar *)&value, sizeof(T));
+
+    }
 
     int write_integer(int value);
 
@@ -260,6 +280,10 @@ class MessageWriter {
     ssize_t data_position;
 
 };
+
+template<> inline void MessageWriter::write<string>(const string& value) {
+    write_string(value);
+}
 
 class Dictionary : public std::enable_shared_from_this<Dictionary> {
     friend Message;

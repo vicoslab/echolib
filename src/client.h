@@ -17,8 +17,8 @@ using namespace std;
 
 namespace std {
 
-template<typename Callback,typename Function> inline
-bool func_compare(const Function &lhs,const Function &rhs) {
+template<typename Callback, typename Function> inline
+bool func_compare(const Function &lhs, const Function &rhs) {
     typedef typename conditional
     <
     is_function<Callback>::value,
@@ -35,24 +35,24 @@ bool func_compare(const Function &lhs,const Function &rhs) {
 template<typename function_signature>
 struct function_comparable: function<function_signature> {
     typedef function<function_signature> Function;
-    bool (*type_holder)(const Function &,const Function &);
-  public:
+    bool (*type_holder)(const Function &, const Function &);
+public:
     function_comparable() {}
     template<typename Func> function_comparable(Func f)
-        : Function(f), type_holder(func_compare<Func,Function>) {
+        : Function(f), type_holder(func_compare<Func, Function>) {
     }
     template<typename Func> function_comparable &operator=(Func f) {
         Function::operator=(f);
-        type_holder=func_compare<Func,Function>;
+        type_holder = func_compare<Func, Function>;
         return *this;
     }
-    friend bool operator==(const Function &lhs,const function_comparable &rhs) {
-        return rhs.type_holder(lhs,rhs);
+    friend bool operator==(const Function &lhs, const function_comparable &rhs) {
+        return rhs.type_holder(lhs, rhs);
     }
-    friend bool operator==(const function_comparable &lhs,const Function &rhs) {
-        return rhs==lhs;
+    friend bool operator==(const function_comparable &lhs, const Function &rhs) {
+        return rhs == lhs;
     }
-    friend void swap(function_comparable &lhs,function_comparable &rhs) { // noexcept
+    friend void swap(function_comparable &lhs, function_comparable &rhs) { // noexcept
         lhs.swap(rhs);
         lhs.type_holder.swap(rhs.type_holder);
     }
@@ -86,11 +86,10 @@ class Client : public std::enable_shared_from_this<Client> {
     friend Subscriber;
     friend Publisher;
     friend Watcher;
-  public:
-    static const int TYPE_LOCAL;
-    static const int TYPE_INET;
-    Client(const string& file);
-    Client(const string& address,int type);
+public:
+
+    Client(const string& socket);
+    Client(const string& address, int type);
     virtual ~Client();
 
     virtual bool wait(long timeout = -1);
@@ -101,7 +100,7 @@ class Client : public std::enable_shared_from_this<Client> {
 
     int get_queue_size();
 
-  protected:
+protected:
 
     bool unsubscribe(int channel, DataCallback callback);
     bool subscribe(int channel, DataCallback callback);
@@ -110,7 +109,12 @@ class Client : public std::enable_shared_from_this<Client> {
     void send(SharedMessage message);
     void lookup_channel(const string &alias, const string &type, function<void(SharedDictionary)> callback, bool create = true);
 
-  private:
+private:
+
+    static const int TYPE_LOCAL;
+    static const int TYPE_INET;
+
+    void initialize_common();
 
     void send_command(SharedDictionary command, function<bool(SharedDictionary, SharedDictionary)> callback);
 
@@ -129,13 +133,17 @@ class Client : public std::enable_shared_from_this<Client> {
     map<int, set<DataCallback> > subscriptions;
     map<int, set<WatchCallback> > watches;
 
+    map<string, string> mappings;
+
     std::recursive_mutex mutex;
 
 };
 
+SharedClient connect(const string& socket = string());
+
 class Subscriber {
     friend Client;
-  public:
+public:
     Subscriber(SharedClient client, const string &alias, const string &type = string());
 
     virtual ~Subscriber();
@@ -148,12 +156,12 @@ class Subscriber {
 
     bool unsubscribe();
 
-  protected:
+protected:
     Subscriber(SharedClient client, const string &alias, const string &type, DataCallback callback);
 
     virtual void on_ready();
 
-  private:
+private:
     DataCallback callback;
 
     void lookup_callback(SharedDictionary lookup);
@@ -165,17 +173,17 @@ class Subscriber {
 
 class ChunkedSubscriber : public Subscriber {
     friend Client;
-  public:
+public:
     ChunkedSubscriber(SharedClient client, const string &alias, const string &type = string());
 
     virtual ~ChunkedSubscriber();
 
     virtual void on_chunk(SharedMessage message);
 
-  private:
+private:
 
     class PendingBuffer : public MessageWriter {
-      public:
+    public:
         PendingBuffer(int length, int chunk_size);
 
         virtual ~PendingBuffer();
@@ -186,7 +194,7 @@ class ChunkedSubscriber : public Subscriber {
 
         int chunks() const;
 
-      private:
+    private:
 
         int chunk_size;
 
@@ -200,7 +208,7 @@ class ChunkedSubscriber : public Subscriber {
 
 
 class Watcher {
-  public:
+public:
     Watcher(SharedClient client, const string &alias);
 
     virtual ~Watcher();
@@ -213,11 +221,11 @@ class Watcher {
 
     bool unwatch();
 
-  protected:
+protected:
 
     virtual void on_ready();
 
-  private:
+private:
     WatchCallback callback;
 
     void lookup_callback(SharedDictionary lookup);
@@ -229,7 +237,7 @@ class Watcher {
 
 class Publisher {
     friend Client;
-  public:
+public:
     Publisher(SharedClient client, const string &alias, const string &type = string());
 
     virtual ~Publisher();
@@ -238,7 +246,7 @@ class Publisher {
 
     bool send_message(MessageWriter& writer);
 
-  protected:
+protected:
 
     virtual void on_ready();
 
@@ -257,7 +265,7 @@ class Publisher {
 
     virtual bool send_message_internal(SharedMessage message);
 
-  private:
+private:
 
     void lookup_callback(SharedDictionary lookup);
 
@@ -269,19 +277,19 @@ class Publisher {
 #define DEFAULT_CHUNK_SIZE 10 * 1024
 
 class ChunkedPublisher : public Publisher {
-  public:
+public:
     ChunkedPublisher(SharedClient client, const string &alias, const string &type = string(), int chunk_size = DEFAULT_CHUNK_SIZE);
 
     virtual ~ChunkedPublisher();
 
-  protected:
+protected:
 
     virtual bool send_message_internal(SharedMessage message);
 
-  private:
+private:
 
     class ProxyBuffer : public Buffer {
-      public:
+    public:
         ProxyBuffer(SharedMessage parent, ssize_t start, ssize_t length);
 
         virtual ~ProxyBuffer();
@@ -290,7 +298,7 @@ class ChunkedPublisher : public Publisher {
 
         virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
 
-      private:
+    private:
 
         SharedMessage parent;
         ssize_t start;
@@ -305,14 +313,14 @@ class ChunkedPublisher : public Publisher {
 };
 
 class SubscriptionWatcher : public Watcher {
-  public:
+public:
     SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback);
 
     virtual ~SubscriptionWatcher() {};
 
     virtual void on_event(SharedDictionary message);
 
-  private:
+private:
     function<void(int)> callback;
 
 };

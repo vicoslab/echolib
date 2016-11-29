@@ -69,15 +69,61 @@ static int connect_socket(const string &path) {
     return fd;
 }
 
+const int Client::TYPE_INET = 1;
+const int Client::TYPE_LOCAL = 0;
 
-const int Client::TYPE_INET=1;
-const int Client::TYPE_LOCAL=0;
+SharedClient connect(const string& address) {
+    string temp = address;
 
+    if (temp.empty()) {
+        if (getenv("ECHO_SOCKET") != NULL) {
+            temp = string(getenv("ECHO_SOCKET"));
+        } else {
+            temp = "/tmp/echo.sock";
+        }
+    }
 
-Client::Client(const string &path) : fd(connect_socket(path)), writer(fd), reader(fd),
+    size_t split = temp.find(":");
+
+    if (split != string::npos) {
+        string host = temp.substr(0, split);
+        int port = atoi(temp.substr(split + 1).c_str());
+        return make_shared<Client>(host, port);
+    } else
+        return make_shared<Client>(temp);
+
+}
+
+static int connect_socket(const string &host, int port) {
+    printf("Typed connect socket\n");
+    printf ("IP: %s, Port: %d", host.c_str(), port);
+    int fd;
+    struct sockaddr_in remote;
+    printf("Type: Internet socket\n");
+
+    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+        throw runtime_error("Unable to create socket");
+    }
+
+    remote.sin_family = AF_INET;
+    inet_pton(AF_INET, host.c_str(), &(remote.sin_addr));
+    remote.sin_port = htons(port);
+    if (connect(fd, (struct sockaddr *) &remote, sizeof(remote)) == -1) {
+        perror("connect");
+        throw runtime_error("Unable to connect socket");
+    }
+
+    if (!make_socket_non_blocking(fd)) {
+        throw runtime_error("Unable to set socket to non-blocking mode");
+    }
+    return fd;
+}
+
+Client::Client(const string &socket) : fd(connect_socket(socket)), writer(fd), reader(fd),
     next_request_key(0), subscriptions(), watches() {
     __debug_enable();
 
+    initialize_common();
 
     struct epoll_event event;
     efd = epoll_create1 (0);
@@ -95,38 +141,11 @@ Client::Client(const string &path) : fd(connect_socket(path)), writer(fd), reade
 
 }
 
-
-static int connect_socket(const string &path, int port) {
-    printf("Typed connect socket\n");
-    printf ("IP: %s, Port: %d",path.c_str(),port);
-    int fd;
-    struct sockaddr_in remote;
-    printf("Type: Internet socket\n");
-
-    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-        throw runtime_error("Unable to create socket");
-    }
-
-    remote.sin_family = AF_INET;
-    inet_pton(AF_INET,path.c_str(),&(remote.sin_addr));
-    remote.sin_port=htons(port);
-    if (connect(fd, (struct sockaddr *) &remote, sizeof(remote)) == -1) {
-        perror("connect");
-        throw runtime_error("Unable to connect socket");
-    }
-
-    if (!make_socket_non_blocking(fd)) {
-        throw runtime_error("Unable to set socket to non-blocking mode");
-    }
-    return fd;
-}
-
-
-
-Client::Client(const string &path, int port) : fd(connect_socket(path,port)), writer(fd), reader(fd),
+Client::Client(const string &host, int port) : fd(connect_socket(host, port)), writer(fd), reader(fd),
     next_request_key(0), subscriptions(), watches() {
     __debug_enable();
 
+    initialize_common();
 
     struct epoll_event event;
     efd = epoll_create1 (0);
@@ -150,6 +169,33 @@ Client::~Client() {
 
 }
 
+void Client::initialize_common() {
+
+    if (getenv("ECHO_MAP") != NULL) {
+        string s(getenv("ECHO_MAP"));
+
+        size_t last = 0, next = 0;
+        string token;
+        while (last != string::npos) {
+            next = s.find(";", last);
+            if (next == string::npos) {
+                token = s.substr(last);
+                last = next;
+            } else {
+                token = s.substr(last, next - last);
+                last = next + 1; 
+            }
+
+            size_t split = token.find("=");
+
+            if (split == string::npos) continue;
+            
+            mappings[token.substr(0, split)] = token.substr(split + 1);
+        } 
+    }
+
+}
+
 bool Client::wait(long timeout) {
     SYNCHRONIZED(mutex);
 
@@ -160,7 +206,7 @@ bool Client::wait(long timeout) {
     while (true) {
         auto current = std::chrono::system_clock::now();
 
-        auto duration= std::chrono::duration_cast<std::chrono::milliseconds>(current-start);
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start);
         long remaining = timeout - (duration.count());
         if (remaining < 1)
             break;
@@ -271,11 +317,11 @@ void Client::handle_message(SharedMessage &message) {
 bool Client::subscribe(int channel, DataCallback callback) {
     SYNCHRONIZED(mutex);
 
-    if(subscriptions.find(channel) == subscriptions.end()) {
+    if (subscriptions.find(channel) == subscriptions.end()) {
         DEBUGMSG("Subscribing to channel %d\n", channel);
         //Generate a subscription command message
         SharedDictionary command = generate_command(ECHO_COMMAND_SUBSCRIBE);
-        command->set<int>("channel",channel);
+        command->set<int>("channel", channel);
         std::function<bool(SharedDictionary, SharedDictionary)>comm_callback = [](SharedDictionary x, SharedDictionary y) {
             return true;
         };
@@ -290,12 +336,12 @@ bool Client::subscribe(int channel, DataCallback callback) {
 bool Client::unsubscribe(int channel, DataCallback callback) {
     SYNCHRONIZED(mutex);
 
-    if(subscriptions.find(channel) == subscriptions.end()) {
+    if (subscriptions.find(channel) == subscriptions.end()) {
         DEBUGMSG("Unknown channel %d\n", channel);
         return false;
     }
 
-    if(subscriptions[channel].find(callback) == subscriptions[channel].end()) {
+    if (subscriptions[channel].find(callback) == subscriptions[channel].end()) {
         DEBUGMSG("Unknown callback for channel %d\n", channel);
         return false;
     }
@@ -303,16 +349,16 @@ bool Client::unsubscribe(int channel, DataCallback callback) {
     if (!subscriptions[channel].erase(callback))
         return false;
 
-    if(subscriptions[channel].size() == 0) {
+    if (subscriptions[channel].size() == 0) {
         DEBUGMSG("No more subscribers for %d\n", channel);
         //no more callbacks, we can unsubscribe
         SharedDictionary command = generate_command(ECHO_COMMAND_UNSUBSCRIBE);
-        command->set<int>("channel",channel);
-        std::function<bool(SharedDictionary,SharedDictionary)>callback = [](SharedDictionary x, SharedDictionary y) {
+        command->set<int>("channel", channel);
+        std::function<bool(SharedDictionary, SharedDictionary)>callback = [](SharedDictionary x, SharedDictionary y) {
             return true;
         };
         //add the unsubscribe command to message queue
-        send_command(command,callback);
+        send_command(command, callback);
         subscriptions.erase(channel);
     }
 
@@ -322,15 +368,15 @@ bool Client::unsubscribe(int channel, DataCallback callback) {
 bool Client::watch(int channel, WatchCallback callback) {
     SYNCHRONIZED(mutex);
 
-    if(watches.find(channel) == watches.end()) {
+    if (watches.find(channel) == watches.end()) {
         //Generate a subscription command message
         SharedDictionary command = generate_command(ECHO_COMMAND_WATCH);
-        command->set<int>("channel",channel);
-        std::function<bool(SharedDictionary,SharedDictionary)>callback = [](SharedDictionary x, SharedDictionary y) {
+        command->set<int>("channel", channel);
+        std::function<bool(SharedDictionary, SharedDictionary)>callback = [](SharedDictionary x, SharedDictionary y) {
             return true;
         };
         //add the watch command to message queue
-        send_command(command,callback);
+        send_command(command, callback);
     }
 
     return watches[channel].insert(callback).second;  // Returns pair, the second value is success
@@ -339,12 +385,12 @@ bool Client::watch(int channel, WatchCallback callback) {
 bool Client::unwatch(int channel, WatchCallback callback) {
     SYNCHRONIZED(mutex);
 
-    if(watches.find(channel) == watches.end()) {
+    if (watches.find(channel) == watches.end()) {
         DEBUGMSG("Unknown channel %d\n", channel);
         return false;
     }
 
-    if(watches[channel].find(callback) == watches[channel].end()) {
+    if (watches[channel].find(callback) == watches[channel].end()) {
         DEBUGMSG("Unknown callback for channel %d\n", channel);
         return false;
     }
@@ -352,16 +398,16 @@ bool Client::unwatch(int channel, WatchCallback callback) {
     if (!watches[channel].erase(callback))
         return false;
 
-    if(watches[channel].size() == 0) {
+    if (watches[channel].size() == 0) {
         DEBUGMSG("No more watchers for %d\n", channel);
         // No more callbacks, we can unwatch
         SharedDictionary command = generate_command(ECHO_COMMAND_UNWATCH);
-        command->set<int>("channel",channel);
-        std::function<bool(SharedDictionary,SharedDictionary)>callback = [](SharedDictionary x, SharedDictionary y) {
+        command->set<int>("channel", channel);
+        std::function<bool(SharedDictionary, SharedDictionary)>callback = [](SharedDictionary x, SharedDictionary y) {
             return true;
         };
         //add the unwatch command to message queue
-        send_command(command,callback);
+        send_command(command, callback);
         watches.erase(channel);
     }
 
@@ -400,11 +446,17 @@ void Client::lookup_channel(const string &alias, const string &type, function<vo
 
     using namespace std::placeholders;
 
+    // Perform remapping of channels
+    string real_alias = alias;
+    if (mappings.find(alias) != mappings.end()) {
+        real_alias = mappings[alias];
+    }
+
     SYNCHRONIZED(mutex);
 
     // Create appropriate command
     SharedDictionary command = generate_command(ECHO_COMMAND_LOOKUP);
-    command->set<string>("alias", alias);
+    command->set<string>("alias", real_alias);
     command->set<string>("type", type);
     command->set<bool>("create", create);
     this->send_command(command, bind(&internal_lookup_callback, _1, _2, callback));
@@ -525,7 +577,7 @@ bool ChunkedSubscriber::PendingBuffer::set_chunk(int index, MessageReader& reade
 
     ssize_t length = reader.get_length() - reader.get_position();
 
-    if (index > 0 && !chunk_present[index-1])
+    if (index > 0 && !chunk_present[index - 1])
         return false;
 
     write_buffer(reader, length);
@@ -538,7 +590,7 @@ bool ChunkedSubscriber::PendingBuffer::set_chunk(int index, MessageReader& reade
 
 bool ChunkedSubscriber::PendingBuffer::is_complete() const {
 
-    return chunk_present[chunk_present.size()-1];
+    return chunk_present[chunk_present.size() - 1];
 
 }
 

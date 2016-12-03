@@ -30,13 +30,41 @@ add_library(echo SHARED
 target_compile_options(echo PUBLIC "-pthread")
 target_link_libraries(echo PUBLIC "pthread")
 
-install(TARGETS echo DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(TARGETS echo EXPORT echolib_targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES
     src/client.h
     src/message.h
     src/datatypes.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/echolib
 )
+
+# CMake config file
+include(CMakePackageConfigHelpers)
+
+set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}/echolib)
+
+configure_package_config_file(echolib-config.cmake.in
+    ${PROJECT_BINARY_DIR}/echolib-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/echolib
+    PATH_VARS LIB_INSTALL_DIR INCLUDE_INSTALL_DIR)
+
+write_basic_package_version_file(
+    ${PROJECT_BINARY_DIR}/echolib-config-version.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
+
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/echolib-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/echolib-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/echolib)
+
+install(
+    EXPORT echolib_targets
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/echolib
+    FILE echolib-targets.cmake
+)
+
 
 # echo daemon
 add_executable(echodaemon

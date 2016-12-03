@@ -54,8 +54,7 @@ void tic() {
 }
 
 void toc() {
-    long diff = clock() - __start_time;
-    DEBUGMSG(" *** Elapsed time %ldms\n", (diff) / (CLOCKS_PER_SEC / 1000));
+    DEBUGMSG(" *** Elapsed time %ldms\n", (clock() - __start_time) / (CLOCKS_PER_SEC / 1000));
 }
 
 const char* __short_file_name(const char* filename) {

@@ -97,9 +97,6 @@ void Client::send(const SharedMessage message) {
 }
 
 bool Client::write() {
-    if(!this) {
-        return false;
-    }
     if (!connected) {
         return false;
     }

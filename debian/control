@@ -1,0 +1,29 @@
+Source: echolib
+Priority: optional
+Maintainer: Rok Mandeljc <rok.mandeljc@gmail.com>
+Build-Depends: debhelper (>= 9), cmake
+Standards-Version: 3.9.5
+Section: libs
+Homepage: https://github.com/vicoslab/echolib
+
+Package: echolib0
+Section: libs
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
+
+Package: echolib-dev
+Section: libdevel
+Architecture: any
+Depends: echolib0 (= ${binary:Version}), ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
+
+Package: echolib-daemon
+Section: misc
+Architecture: any
+Depends: echolib0 (= ${binary:Version}), ${misc:Depends}
+Description: <insert up to 60 chars description>
+ <insert long description, indented with spaces>
+

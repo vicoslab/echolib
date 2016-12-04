@@ -30,6 +30,11 @@ add_library(echo SHARED
 target_compile_options(echo PUBLIC "-pthread")
 target_link_libraries(echo PUBLIC "pthread")
 
+set_target_properties(echo PROPERTIES
+    VERSION 0.0.0
+    SOVERSION 0
+)
+
 install(TARGETS echo EXPORT echolib_targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES
     src/client.h

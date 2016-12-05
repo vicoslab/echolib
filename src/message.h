@@ -47,7 +47,7 @@ class Message;
 typedef shared_ptr<Message> SharedMessage;
 
 class Buffer {
-  public:
+public:
 
     virtual ssize_t get_length() const = 0;
 
@@ -56,7 +56,7 @@ class Buffer {
 };
 
 class MemoryBuffer : public virtual Buffer {
-  public:
+public:
     MemoryBuffer(ssize_t length);
 
     MemoryBuffer(MessageWriter &writer);
@@ -69,11 +69,11 @@ class MemoryBuffer : public virtual Buffer {
 
     uchar* get_buffer() const;
 
-  protected:
+protected:
 
     MemoryBuffer(uchar *data, ssize_t length, bool owned = true);
 
-  private:
+private:
 
     uchar *data;
 
@@ -88,7 +88,7 @@ typedef shared_ptr<Buffer> SharedBuffer;
 class Message : public std::enable_shared_from_this<Message>, public virtual Buffer {
     friend StreamReader;
     friend StreamWriter;
-  public:
+public:
 
     /**
      *
@@ -108,7 +108,11 @@ class Message : public std::enable_shared_from_this<Message>, public virtual Buf
     template<class T> static shared_ptr<Message> pack(int channel, const T &data);
     template<typename T> static shared_ptr<T> unpack(SharedMessage message);
 
-  private:
+protected:
+
+    void set_channel(int channel);
+
+private:
 
     int message_channel;
 
@@ -118,7 +122,7 @@ class Message : public std::enable_shared_from_this<Message>, public virtual Buf
  * Message class
  */
 class BufferedMessage : public Message, virtual public MemoryBuffer {
-  public:
+public:
 
     BufferedMessage(int channel, uchar *data, ssize_t length, bool owned = true);
 
@@ -132,7 +136,7 @@ class BufferedMessage : public Message, virtual public MemoryBuffer {
 
     using MemoryBuffer::copy_data;
 
-  private:
+private:
 
     uchar *data;
     ssize_t data_length;
@@ -141,7 +145,7 @@ class BufferedMessage : public Message, virtual public MemoryBuffer {
 };
 
 class MultiBufferMessage : public Message {
-  public:
+public:
 
     MultiBufferMessage(int channel, const vector<SharedBuffer> &buffers);
 
@@ -151,7 +155,7 @@ class MultiBufferMessage : public Message {
 
     virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
 
-  private:
+private:
 
     vector<SharedBuffer> buffers;
     vector<ssize_t> offsets;
@@ -169,7 +173,7 @@ class ParseException: public std::exception {
 };
 
 class MessageReader {
-  public:
+public:
     MessageReader(SharedMessage message);
 
     /**
@@ -178,7 +182,7 @@ class MessageReader {
     virtual ~MessageReader();
 
     template<typename T> T read() {
-        static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported here");
+        static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported");
         T value;
         copy_data((uchar *) &value, sizeof(T));
         return value;
@@ -220,7 +224,7 @@ class MessageReader {
 
     void copy_data(uchar* buffer, ssize_t length = 0);
 
-  private:
+private:
 
     SharedMessage message;
 
@@ -232,23 +236,39 @@ template<> inline string MessageReader::read<string>() {
     return read_string();
 }
 
+template<typename T> void read(MessageReader& reader, T& dst) {
+    static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported");
+    dst = reader.read<T>();
+}
+
+template<> inline void read(MessageReader& reader, string& dst) {
+    dst = reader.read_string();
+}
+
+template<typename T> void read(MessageReader& reader, vector<T>& dst) {
+    size_t n = reader.read<size_t>();
+    dst.resize(n);
+    for (size_t i = 0; i < n; i++) {
+        read(reader, dst[i]);
+    }
+}
+
 class MessageWriter {
     friend MemoryBuffer;
     friend MessageReader;
-  public:
+public:
     /**
      *
      */
     ~MessageWriter();
 
-    MessageWriter(ssize_t length);
+    MessageWriter(ssize_t length = 0);
 
     MessageWriter(uchar* buffer, ssize_t length);
 
     template<typename T> void write(const T& value) {
-        
+
         static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported here");
-        cout << sizeof(T) << endl;
         write_buffer((uchar *)&value, sizeof(T));
 
     }
@@ -271,7 +291,7 @@ class MessageWriter {
 
     ssize_t get_length();
 
-  private:
+private:
 
 
     bool data_owned;
@@ -285,9 +305,26 @@ template<> inline void MessageWriter::write<string>(const string& value) {
     write_string(value);
 }
 
+template<typename T> void write(MessageWriter& writer, const T& src) {
+    static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported here");
+    writer.write<T>(src);
+}
+
+template<> inline void write(MessageWriter& writer, const string& src) {
+    writer.write_string(src);
+}
+
+template<typename T> void write(MessageWriter& writer, const vector<T>& src) {
+    writer.write<size_t>(src.size());
+    
+    for (size_t i = 0; i < src.size(); i++) {
+        write(writer, src[i]);
+    }
+}
+
 class Dictionary : public std::enable_shared_from_this<Dictionary> {
     friend Message;
-  public:
+public:
 
     Dictionary();
     ~Dictionary();
@@ -298,13 +335,13 @@ class Dictionary : public std::enable_shared_from_this<Dictionary> {
 
     bool contains(const string key) const;
 
-  protected:
+protected:
 
     template<class T> static string T_as_string(const  T &t );
     template<class T> static T string_as_T( const string &s );
     static void trim( string &s );
 
-  private:
+private:
 
     int code;
 
@@ -324,7 +361,7 @@ inline SharedDictionary generate_command(int code) {
 }
 
 class StreamReader {
-  public:
+public:
 
     StreamReader(int fd);
     ~StreamReader();
@@ -335,7 +372,7 @@ class StreamReader {
 
     //todo: za test
     int fd;
-  private:
+private:
 
 
 
@@ -361,7 +398,7 @@ class StreamReader {
 };
 
 class StreamWriter {
-  public:
+public:
 
     StreamWriter(int fd);
     ~StreamWriter();
@@ -374,10 +411,10 @@ class StreamWriter {
 
     int get_queue_size();
 
-  protected:
+protected:
 
     class MessageContainer {
-      public:
+    public:
         MessageContainer() : priority(0), time(0) {}
         MessageContainer(SharedMessage message, int priority, long time) : message(message), priority(priority), time(time) {}
         SharedMessage message;
@@ -395,7 +432,7 @@ class StreamWriter {
     static bool comparator(const MessageContainer &lhs, const MessageContainer &rhs);
 
 
-  private:
+private:
 
     int fd;
 

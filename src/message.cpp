@@ -120,14 +120,17 @@ void MessageReader::copy_data(uchar* buffer, ssize_t length) {
 
 MessageWriter::~MessageWriter() {
 
-    if (data_owned)
+    if (data_owned && data)
         free(data);
 
 }
 
 MessageWriter::MessageWriter(ssize_t length): data_owned(true), data_length(length), data_position(0) {
-    data = (uchar*) malloc(sizeof(uchar) * data_length);
-
+    if (data_length > 0) {
+        data = (uchar*) malloc(sizeof(uchar) * data_length);
+    } else {
+        data = NULL;
+    }
 }
 
 MessageWriter::MessageWriter(uchar* buffer, ssize_t length): data_owned(false), data(buffer), data_length(length), data_position(0) {
@@ -138,8 +141,13 @@ int MessageWriter::write_buffer(const uchar* buffer, ssize_t len) {
 
     if (len > data_length - data_position) {
         if (!data_owned) throw EndOfBufferException();
-        data_length = data_position + len;
-        data = (uchar*) realloc(data, sizeof(uchar) * data_length);
+        if (!data_length) {
+            data_length = len;
+            data = (uchar*) malloc(sizeof(uchar) * data_length);
+        } else {
+            data_length = data_position + len;
+            data = (uchar*) realloc(data, sizeof(uchar) * data_length);
+        }
     }
 
     memcpy(&(data[data_position]), buffer, len);
@@ -155,8 +163,13 @@ int MessageWriter::write_buffer(MessageReader& reader, ssize_t len) {
 
     if (len > data_length - data_position) {
         if (!data_owned) throw EndOfBufferException();
-        data_length = data_position + len;
-        data = (uchar*) realloc(data, sizeof(uchar) * data_length);
+        if (!data_length) {
+            data_length = len;
+            data = (uchar*) malloc(sizeof(uchar) * data_length);
+        } else {
+            data_length = data_position + len;
+            data = (uchar*) realloc(data, sizeof(uchar) * data_length);
+        }
     }
 
     reader.copy_data(&(data[data_position]), len);
@@ -239,7 +252,7 @@ shared_ptr<Message> StreamReader::read_message() {
     while (1) {
         /* Buffer position is increased in process_message() */
         if (buffer_position >= buffer_length) {
-            buffer_length = read(fd, buffer, BUFFER_SIZE);
+            buffer_length = ::read(fd, buffer, BUFFER_SIZE);
             buffer_position = 0;
 
             if (buffer_length == -1) {
@@ -536,6 +549,12 @@ Message::~Message() {
 int Message::get_channel() const {
 
     return message_channel;
+
+}
+
+void Message::set_channel(int channel) {
+
+    message_channel = channel;
 
 }
 

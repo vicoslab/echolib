@@ -76,8 +76,8 @@ SharedClient connect(const string& address) {
     string temp = address;
 
     if (temp.empty()) {
-        if (getenv("ECHO_SOCKET") != NULL) {
-            temp = string(getenv("ECHO_SOCKET"));
+        if (getenv("ECHOLIB_SOCKET") != NULL) {
+            temp = string(getenv("ECHOLIB_SOCKET"));
         } else {
             temp = "/tmp/echo.sock";
         }
@@ -95,11 +95,9 @@ SharedClient connect(const string& address) {
 }
 
 static int connect_socket(const string &host, int port) {
-    printf("Typed connect socket\n");
-    printf ("IP: %s, Port: %d", host.c_str(), port);
+
     int fd;
     struct sockaddr_in remote;
-    printf("Type: Internet socket\n");
 
     if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
         throw runtime_error("Unable to create socket");
@@ -171,8 +169,8 @@ Client::~Client() {
 
 void Client::initialize_common() {
 
-    if (getenv("ECHO_MAP") != NULL) {
-        string s(getenv("ECHO_MAP"));
+    if (getenv("ECHOLIB_MAP") != NULL) {
+        string s(getenv("ECHOLIB_MAP"));
 
         size_t last = 0, next = 0;
         string token;
@@ -189,8 +187,13 @@ void Client::initialize_common() {
             size_t split = token.find("=");
 
             if (split == string::npos) continue;
-            
-            mappings[token.substr(0, split)] = token.substr(split + 1);
+
+            string from = token.substr(0, split);
+            string to = token.substr(split + 1);
+
+            DEBUGMSG("Mapping alias %s to %s\n", from.c_str(), to.c_str());
+
+            mappings[from] = to;
         } 
     }
 

@@ -57,7 +57,7 @@ static bool configure_socket(int fd, int size) {
     return true;
 }
 
-static int create_and_bind(char *path) {
+static int create_and_bind(const char *path) {
     struct sockaddr_un hints;
     int s, len;
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
@@ -81,7 +81,7 @@ static int create_and_bind(char *path) {
 
 }
 
-static int create_and_bind_interface(char* port) {
+static int create_and_bind_interface(int port) {
 
     struct sockaddr_in hints;
     int s;
@@ -94,9 +94,7 @@ static int create_and_bind_interface(char* port) {
     hints.sin_family = AF_INET;
     // bind the created socket to all network interfaces
     hints.sin_addr.s_addr = htonl(INADDR_ANY);
-    hints.sin_port = htons(atoi(port));
-    printf("%s\n",port);
-    printf("%d\n",htons(atoi(port)));
+    hints.sin_port = htons(port);
 
     /* Mark as re-usable (accept more than one connection to same socket) */
     int so_optval = 1;
@@ -123,7 +121,7 @@ int main(int argc, char *argv[]) {
     int efd;
     struct epoll_event event;
 
-    __debug_enable();
+    //__debug_enable();
 
     // Valgrind reports error otherwise: http://stackoverflow.com/questions/19364942/points-to-uninitialised-bytes-valgrind-errors
     memset(&event, 0, sizeof(epoll_event));
@@ -131,21 +129,31 @@ int main(int argc, char *argv[]) {
     int timeout = -1;
     Router router;
 
-    if (argc != 2 && argc!=3) {
-        fprintf(stderr, "Usage: %s [socket_path] or %s -i [port]\n", argv[0],argv[0]);
-        exit(EXIT_FAILURE);
+    string address;
+
+    if (argc > 1)
+        address = string(argv[1]);
+
+    if (address.empty()) {
+        if (getenv("ECHOLIB_SOCKET") != NULL) {
+            address = string(getenv("ECHOLIB_SOCKET"));
+        } else {
+            address = "/tmp/echo.sock";
+        }
     }
 
-    DEBUGMSG("Starting socket binding \n");
-    char const* inet_switch = "-i";
-    if(strcmp(argv[1],inet_switch)!=0) {
-        sfd = create_and_bind(argv[1]);
-        //if we have -i as first argument, we will create an internet socket
-        //Port is the second argument
+    size_t split = address.find(":");
+
+    if (split != string::npos) {
+        string host = address.substr(0, split);
+        int port = atoi(address.substr(split + 1).c_str());
+        printf("Binding TCP socket\n");
+        sfd=create_and_bind_interface(port);
     } else {
-        printf("Making internet socket\n");
-        sfd=create_and_bind_interface(argv[2]);
+        printf("Binding Unix socket\n");
+        sfd = create_and_bind(address.c_str());
     }
+
     if (sfd == -1)
         abort();
 

@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.11)
 
 project(echo CXX)
-set(PROJECT_VERSION 1.0.0)
+set(PROJECT_VERSION 1.0.1)
 
 include(GNUInstallDirs)
 

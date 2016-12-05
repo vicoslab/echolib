@@ -1,61 +1,134 @@
+cmake_minimum_required(VERSION 2.8.11)
 
-PROJECT(echo)
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8 FATAL_ERROR)
+project(echo CXX)
+set(PROJECT_VERSION 1.0.1)
 
-SET(EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
-SET(LIBRARY_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR})
+include(GNUInstallDirs)
 
-SET(CMAKE_CXX_FLAGS "-std=c++11 -Wall -pedantic -O3 -pthread")
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-if (NOT ${U_CMAKE_BUILD_TYPE} MATCHES DEBUG)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fvisibility=hidden -flto")
+option(BUILD_DAEMON "Build echolib daemon" ON)
+option(BUILD_PYTHON "Build python bindings" ON)
+option(BUILD_EXAMPLES "Build examples" OFF)
+option(BUILD_DEBUG "Enable debug output" OFF)
+
+set(ECHO_PYTHON_VERSION "2" CACHE STRING "Python version to use for compiling python bindings")
+
+if(CMAKE_COMPILER_IS_GNUCXX)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto")
 endif()
 
-SET(LIBRARY_SOURCES src/message.cpp src/client.cpp src/debug.cpp)
-SET(DAEMON_SOURCES src/daemon.cpp src/routing.cpp src/message.cpp src/debug.cpp)
+if(BUILD_DEBUG)
+    add_definitions(-DBUILD_DEBUG)
+endif()
 
-SET(BUILD_DEBUG TRUE CACHE BOOL "Enable debug output")
-IF(BUILD_DEBUG)
-	ADD_DEFINITIONS(-DBUILD_DEBUG)
-ENDIF(BUILD_DEBUG)
+# echo shared library
+add_library(echo SHARED
+    src/message.cpp
+    src/client.cpp
+    src/debug.cpp
+)
 
-ADD_LIBRARY(echo SHARED ${LIBRARY_SOURCES})
+target_compile_options(echo PUBLIC "-pthread")
+target_link_libraries(echo PUBLIC "pthread")
 
-SET(BUILD_PYTHON TRUE CACHE BOOL "Enable Python support")
-IF(BUILD_PYTHON)
-    FIND_PATH(PYBIND11_INCLUDE_DIR pybind11.h HINTS /usr/local/include PATH_SUFFIXES pybind11 DOC "PyBind11 include directory")
-    FIND_PACKAGE(PythonLibs REQUIRED)
-    ADD_LIBRARY(pyecho SHARED src/python.cpp)
-    TARGET_LINK_LIBRARIES(pyecho echo ${PYTHON_LIBRARY})
-    SET_TARGET_PROPERTIES(pyecho PROPERTIES PREFIX "")
-    TARGET_INCLUDE_DIRECTORIES(pyecho PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR})
-    INSTALL(TARGETS pyecho LIBRARY DESTINATION lib)
-ENDIF(BUILD_PYTHON)
+set_target_properties(echo PROPERTIES
+    VERSION 0.0.0
+    SOVERSION 0
+)
 
-ADD_EXECUTABLE(echodaemon ${DAEMON_SOURCES})
+install(TARGETS echo EXPORT echolib_targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
+install(FILES
+    src/client.h
+    src/message.h
+    src/datatypes.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/echolib
+)
 
-SET(BUILD_EXAMPLES TRUE CACHE BOOL "Enable Examples support")
-IF(BUILD_EXAMPLES)
+# CMake config file
+include(CMakePackageConfigHelpers)
 
-    ADD_EXECUTABLE(chat src/examples/chat.cpp)
-    TARGET_LINK_LIBRARIES(chat echo)
-    TARGET_INCLUDE_DIRECTORIES(chat PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}/echolib)
 
-    ADD_EXECUTABLE(chat_ip src/examples/chat_internet.cpp)
-    TARGET_LINK_LIBRARIES(chat_ip echo)
-    TARGET_INCLUDE_DIRECTORIES(chat_ip PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+configure_package_config_file(echolib-config.cmake.in
+    ${PROJECT_BINARY_DIR}/echolib-config.cmake
+    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/echolib
+    PATH_VARS LIB_INSTALL_DIR INCLUDE_INSTALL_DIR)
 
-    ADD_EXECUTABLE(chunked src/examples/chunked.cpp)
-    TARGET_LINK_LIBRARIES(chunked echo)
-    TARGET_INCLUDE_DIRECTORIES(chunked PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/)
+write_basic_package_version_file(
+    ${PROJECT_BINARY_DIR}/echolib-config-version.cmake
+    VERSION ${PROJECT_VERSION}
+    COMPATIBILITY SameMajorVersion)
 
-    FIND_PACKAGE(OpenCV REQUIRED core highgui)
-    ADD_EXECUTABLE(opencv src/examples/opencv.cpp)
-    TARGET_LINK_LIBRARIES(opencv echo ${OpenCV_LIBS})
-    TARGET_INCLUDE_DIRECTORIES(opencv PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src/ ${OpenCV_INCLUDE_DIR})
+install(FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/echolib-config.cmake
+    ${CMAKE_CURRENT_BINARY_DIR}/echolib-config-version.cmake
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/echolib)
 
-ENDIF(BUILD_EXAMPLES)
+install(
+    EXPORT echolib_targets
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/echolib
+    FILE echolib-targets.cmake
+)
 
-INSTALL(TARGETS echo LIBRARY DESTINATION lib)
-INSTALL(FILES src/client.h src/message.h src/datatypes.h DESTINATION include/echolib)
+# echo daemon
+if(BUILD_DAEMON)
+    add_executable(echodaemon
+        src/daemon.cpp
+        src/routing.cpp
+        src/message.cpp
+        src/debug.cpp
+    )
+
+    install(TARGETS echodaemon DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
+# Python bindings
+if(BUILD_PYTHON)
+    find_path(PYBIND11_INCLUDE_DIR pybind11.h HINTS /usr/include PATH_SUFFIXES pybind11 DOC "PyBind11 include directory")
+    find_package(PythonInterp ${ECHO_PYTHON_VERSION} REQUIRED)
+    find_package(PythonLibs ${ECHO_PYTHON_VERSION} REQUIRED)
+
+    add_library(pyecho SHARED src/python.cpp)
+    target_link_libraries(pyecho echo ${PYTHON_LIBRARY})
+    set_target_properties(pyecho PROPERTIES PREFIX "")
+    target_include_directories(pyecho PRIVATE ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR})
+
+    # Determine installation path
+    execute_process(COMMAND
+        ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
+        OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES})
+endif()
+
+# Examples
+if(BUILD_EXAMPLES)
+    add_executable(chat src/examples/chat.cpp)
+    target_include_directories(chat PRIVATE src)
+    target_link_libraries(chat echo)
+
+    add_executable(chat_ip src/examples/chat_internet.cpp)
+    target_include_directories(chat_ip PRIVATE src)
+    target_link_libraries(chat_ip echo)
+
+    add_executable(chunked src/examples/chunked.cpp)
+    target_include_directories(chunked PRIVATE src)
+    target_link_libraries(chunked echo)
+
+    find_package(OpenCV QUIET)
+    if(OpenCV_FOUND)
+        add_executable(opencv src/examples/opencv.cpp)
+        target_include_directories(opencv PRIVATE src)
+        target_link_libraries(opencv echo)
+        if("${OpenCV_VERSION_MAJOR}" STREQUAL "3")
+            target_link_libraries(opencv opencv_core opencv_highgui opencv_videoio)
+        else()
+            target_link_libraries(opencv opencv_core opencv_highgui)
+        endif()
+    endif()
+endif()
+
 

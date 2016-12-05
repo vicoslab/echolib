@@ -1,0 +1,63 @@
+Source: echolib
+Priority: optional
+Maintainer: Rok Mandeljc <rok.mandeljc@gmail.com>
+Build-Depends: debhelper (>= 9),
+               cmake (>= 2.8.11),
+               pybind11-dev (>= 2.0.0),
+               dh-python,
+               python-all,
+               python-dev,
+               python3-all,
+               python3-dev
+Standards-Version: 3.9.5
+Section: libs
+Homepage: https://github.com/vicoslab/echolib
+X-Python-Version: >= 2.7
+X-Python3-Version: >= 3.2
+
+Package: echolib0
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: A simple and efficient IPC library
+ A simple and efficient interprocess communication (IPC) library for
+ Linux written in C++11. The core part of the code was developed as a
+ bachelor's thesis of Urban Škvorc with the title `Development of a
+ library for interprocess communication in interactive systems` in 2015
+ at the University of Ljubljana, Faculty of Computer and Information
+ Science. The library was later added some documentation and some polish
+ and is now made available under MIT license.
+
+Package: echolib-dev
+Section: libdevel
+Architecture: any
+Depends: echolib0 (= ${binary:Version}), ${misc:Depends}
+Description: A simple and efficient IPC library (development files)
+ This package contains files needed to develop with echolib.
+
+Package: echolib-daemon
+Section: misc
+Architecture: any
+Depends: echolib0 (= ${binary:Version}), ${misc:Depends}
+Description: Daemon for routing messages between clients using echolib IPC library
+ This package contains the daemon for routing messages between clients
+ written using echolib.
+
+Package: python-echolib
+Architecture: all
+Multi-Arch: foreign
+Section: python
+Depends: ${misc:Depends},
+         ${python:Depends},
+         echolib0 (= ${binary:Version})
+Description: echolib bindings for Python 2
+ This package provides echolib bindings for Python 2.
+
+Package: python3-echolib
+Architecture: all
+Multi-Arch: foreign
+Section: python
+Depends: ${misc:Depends},
+         ${python3:Depends},
+         echolib0 (= ${binary:Version})
+Description: echolib bindings for Python 3
+ This package provides echolib bindings for Python 3.

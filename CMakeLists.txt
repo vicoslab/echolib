@@ -12,6 +12,8 @@ option(BUILD_PYTHON "Build python bindings" ON)
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_DEBUG "Enable debug output" OFF)
 
+set(ECHO_PYTHON_VERSION "2" CACHE STRING "Python version to use for compiling python bindings")
+
 if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -pedantic")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -flto")
@@ -86,8 +88,8 @@ endif()
 # Python bindings
 if(BUILD_PYTHON)
     find_path(PYBIND11_INCLUDE_DIR pybind11.h HINTS /usr/include PATH_SUFFIXES pybind11 DOC "PyBind11 include directory")
-    find_package(PythonInterp REQUIRED)
-    find_package(PythonLibs REQUIRED)
+    find_package(PythonInterp ${ECHO_PYTHON_VERSION} REQUIRED)
+    find_package(PythonLibs ${ECHO_PYTHON_VERSION} REQUIRED)
 
     add_library(pyecho SHARED src/python.cpp)
     target_link_libraries(pyecho echo ${PYTHON_LIBRARY})

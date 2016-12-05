@@ -56,7 +56,7 @@ override_dh_auto_configure-python%:
 	-DBUILD_PYTHON=ON \
 	-DBUILD_EXAMPLES=OFF \
 	-DBUILD_DEBUG=OFF \
-	-DPython_ADDITIONAL_VERSIONS=$*
+	-DECHO_PYTHON_VERSION=$*
 
 # Override build targets
 override_dh_auto_build: build_python2 build_python3

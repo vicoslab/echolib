@@ -65,11 +65,6 @@ template<typename T> using SharedTypedPublisher = shared_ptr<TypedPublisher<T> >
 #define REGISTER_TYPE_IDENTIFIER(X) template <> struct TypeIdentifier< X > \
     { static const char* name; }; const char* TypeIdentifier< X >::name = #X
 
-template <> struct TypeIdentifier<Dictionary> {
-    static const char* name;
-};
-const char* TypeIdentifier<Dictionary>::name = "dictionary";
-
 }
 
 // Optional protobuf support

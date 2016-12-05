@@ -20,7 +20,8 @@ if(CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 if(BUILD_DEBUG)
-    add_definitions(-DBUILD_DEBUG)
+	add_definitions(-DECHOLIB_DEBUG)
+    add_definitions(-DECHOLIB_SOURCE_COMPILE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 endif()
 
 # echo shared library

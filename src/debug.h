@@ -11,7 +11,7 @@ using namespace std;
 
 #define SHORT_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
-#ifdef BUILD_DEBUG
+#ifdef ECHOLIB_DEBUG
 
 #define DEBUGGING if (__is_debug_enabled())
 

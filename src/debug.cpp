@@ -9,15 +9,19 @@ using namespace std;
 
 long __start_time = clock();
 
-#ifdef SOURCE_COMPILE_ROOT
-const char* _source_root = SOURCE_COMPILE_ROOT;
+#ifdef ECHOLIB_SOURCE_COMPILE_ROOT
+const char* _source_root = ECHOLIB_SOURCE_COMPILE_ROOT;
 #else
 const char* _source_root = "";
 #endif
 const int _source_root_len = strlen(_source_root);
 
-#ifdef ENABLE_DEBUG
+#ifdef ECHOLIB_DEBUG
+#ifdef ECHOLIB_ENABLE_DEBUG
 int ___debug = 1;
+#else
+int ___debug = -1;
+#endif
 #else
 int ___debug = 0;
 #endif
@@ -33,6 +37,9 @@ void __debug_disable() {
 }
 
 int __is_debug_enabled() {
+    if (___debug < 0) {
+        ___debug = getenv("ECHOLIB_DEBUG") != 0;
+    }
     return ___debug;
 }
 

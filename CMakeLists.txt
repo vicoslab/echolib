@@ -44,6 +44,7 @@ install(FILES
     src/client.h
     src/message.h
     src/datatypes.h
+    src/helpers.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/echolib
 )
 

@@ -7,23 +7,29 @@ Section: libs
 Homepage: https://github.com/vicoslab/echolib
 
 Package: echolib0
-Section: libs
 Architecture: any
 Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: A simple and efficient IPC library
+ A simple and efficient interprocess communication (IPC) library for
+ Linux written in C++11. The core part of the code was developed as a
+ bachelor's thesis of Urban Škvorc with the title `Development of a
+ library for interprocess communication in interactive systems` in 2015
+ at the University of Ljubljana, Faculty of Computer and Information
+ Science. The library was later added some documentation and some polish
+ and is now made available under MIT license.
 
 Package: echolib-dev
 Section: libdevel
 Architecture: any
 Depends: echolib0 (= ${binary:Version}), ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: A simple and efficient IPC library (development files)
+ This package contains files needed to develop with echolib.
 
 Package: echolib-daemon
 Section: misc
 Architecture: any
 Depends: echolib0 (= ${binary:Version}), ${misc:Depends}
-Description: <insert up to 60 chars description>
- <insert long description, indented with spaces>
+Description: Daemon for routing messages between clients using echolib IPC library
+ This package contains the daemon for routing messages between clients
+ written using echolib.
 

@@ -7,8 +7,9 @@ include(GNUInstallDirs)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-option(BUILD_PYTHON "Enable python support" ON)
-option(BUILD_EXAMPLES "Build examples" ON)
+option(BUILD_DAEMON "Build echolib daemon" ON)
+option(BUILD_PYTHON "Build python bindings" ON)
+option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_DEBUG "Enable debug output" OFF)
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -70,16 +71,17 @@ install(
     FILE echolib-targets.cmake
 )
 
-
 # echo daemon
-add_executable(echodaemon
-    src/daemon.cpp
-    src/routing.cpp
-    src/message.cpp
-    src/debug.cpp
-)
+if(BUILD_DAEMON)
+    add_executable(echodaemon
+        src/daemon.cpp
+        src/routing.cpp
+        src/message.cpp
+        src/debug.cpp
+    )
 
-install(TARGETS echodaemon DESTINATION ${CMAKE_INSTALL_BINDIR})
+    install(TARGETS echodaemon DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
 
 # Python bindings
 if(BUILD_PYTHON)

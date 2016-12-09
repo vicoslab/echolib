@@ -90,8 +90,8 @@ endif()
 # Python bindings
 if(BUILD_PYTHON)
     find_path(PYBIND11_INCLUDE_DIR pybind11.h HINTS /usr/include PATH_SUFFIXES pybind11 DOC "PyBind11 include directory")
-    find_package(PythonInterp ${ECHO_PYTHON_VERSION} REQUIRED)
-    find_package(PythonLibs ${ECHO_PYTHON_VERSION} REQUIRED)
+    find_package(PythonInterp ${ECHOCV_PYTHON_VERSION} REQUIRED)
+    find_package(PythonLibs ${ECHOCV_PYTHON_VERSION} REQUIRED)
 
     add_library(pyecho SHARED src/python.cpp)
     target_link_libraries(pyecho echo ${PYTHON_LIBRARY})
@@ -103,7 +103,8 @@ if(BUILD_PYTHON)
         ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
         OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
-    install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES})
+    install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)
+    install(DIRECTORY python/echolib DESTINATION ${PYTHON_SITE_PACKAGES})
 endif()
 
 # Examples
@@ -112,25 +113,9 @@ if(BUILD_EXAMPLES)
     target_include_directories(chat PRIVATE src)
     target_link_libraries(chat echo)
 
-    add_executable(chat_ip src/examples/chat_internet.cpp)
-    target_include_directories(chat_ip PRIVATE src)
-    target_link_libraries(chat_ip echo)
-
     add_executable(chunked src/examples/chunked.cpp)
     target_include_directories(chunked PRIVATE src)
     target_link_libraries(chunked echo)
-
-    find_package(OpenCV QUIET)
-    if(OpenCV_FOUND)
-        add_executable(opencv src/examples/opencv.cpp)
-        target_include_directories(opencv PRIVATE src)
-        target_link_libraries(opencv echo)
-        if("${OpenCV_VERSION_MAJOR}" STREQUAL "3")
-            target_link_libraries(opencv opencv_core opencv_highgui opencv_videoio)
-        else()
-            target_link_libraries(opencv opencv_core opencv_highgui)
-        endif()
-    endif()
 endif()
 
 

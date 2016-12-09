@@ -1,1 +1,2 @@
-usr/lib/python2*/*-packages/*.so
+usr/lib/python2*/*-packages/echolib/*.so
+usr/lib/python2*/*-packages/echolib/*.py

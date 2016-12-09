@@ -5,9 +5,7 @@ Build-Depends: debhelper (>= 9),
                cmake (>= 2.8.11),
                pybind11-dev (>= 2.0.0),
                dh-python,
-               python-all,
                python-dev,
-               python3-all,
                python3-dev
 Standards-Version: 3.9.5
 Section: libs

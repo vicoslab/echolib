@@ -374,7 +374,8 @@ shared_ptr<Message> StreamReader::process_buffer() {
         }
 
         if (complete) {
-            shared_ptr<Message> ptr(make_shared<BufferedMessage>(message_channel, data, data_length, true));
+            shared_ptr<Message> ptr(make_shared<BufferedMessage>(data, data_length, true));
+            ptr->set_channel(message_channel);
             data = NULL;
             buffer_position = i;
             reset();
@@ -538,6 +539,14 @@ int StreamWriter::get_queue_size() {
     return incoming.size();
 }
 
+void MessageHandler::set_channel(SharedMessage message, int channel_id) {
+    message->set_channel(channel_id);
+}
+
+Message::Message() : message_channel(0) {
+
+}
+
 Message::Message(int channel) : message_channel(channel) {
 
 }
@@ -558,15 +567,15 @@ void Message::set_channel(int channel) {
 
 }
 
-BufferedMessage::BufferedMessage(int channel, uchar *data, ssize_t length, bool owned): MemoryBuffer(data, length, owned), Message(channel) {
+BufferedMessage::BufferedMessage(uchar *data, ssize_t length, bool owned): MemoryBuffer(data, length, owned), Message() {
 
 }
 
-BufferedMessage::BufferedMessage(int channel, int length): MemoryBuffer(length), Message(channel) {
+BufferedMessage::BufferedMessage(int length): MemoryBuffer(length), Message() {
 
 }
 
-BufferedMessage::BufferedMessage(int channel, MessageWriter& writer): MemoryBuffer(writer), Message(channel) {
+BufferedMessage::BufferedMessage(MessageWriter& writer): MemoryBuffer(writer), Message() {
 
 }
 
@@ -614,7 +623,7 @@ uchar* MemoryBuffer::get_buffer() const {
     return data;
 }
 
-MultiBufferMessage::MultiBufferMessage(int channel, const vector<SharedBuffer> &buffers) : Message(channel), length(0) {
+MultiBufferMessage::MultiBufferMessage(const vector<SharedBuffer> &buffers) : Message(), length(0) {
 
     for (vector<SharedBuffer>::const_iterator it = buffers.begin(); it != buffers.end(); ++it) {
         if ((*it)->get_length() < 1) continue;
@@ -673,6 +682,18 @@ bool Dictionary::contains(const string key) const {
 
     return it != arguments.end();
 
+}
+
+DictionaryIterator Dictionary::begin() const {
+    return arguments.begin();
+}
+
+DictionaryIterator Dictionary::end() const {
+    return arguments.end();
+}
+
+size_t Dictionary::size() const {
+    return arguments.size();
 }
 
 }

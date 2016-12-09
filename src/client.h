@@ -82,7 +82,7 @@ template<class F> WatchCallback create_watch_callback(F f) {
     return WatchCallback(new std::function<void(SharedDictionary)>(f));
 }
 
-class Client : public std::enable_shared_from_this<Client> {
+class Client :  public MessageHandler, public std::enable_shared_from_this<Client> {
     friend Subscriber;
     friend Publisher;
     friend Watcher;
@@ -141,7 +141,7 @@ private:
 
 SharedClient connect(const string& socket = string());
 
-class Subscriber {
+class Subscriber : public MessageHandler {
     friend Client;
 public:
     Subscriber(SharedClient client, const string &alias, const string &type = string());
@@ -235,7 +235,7 @@ private:
 
 };
 
-class Publisher {
+class Publisher : public MessageHandler {
     friend Client;
 public:
     Publisher(SharedClient client, const string &alias, const string &type = string());
@@ -257,7 +257,8 @@ protected:
         if (get_channel_id() <= 0)
             return false;
 
-        SharedMessage message = Message::pack<T>(get_channel_id(), data);
+        SharedMessage message = Message::pack<T>(data);
+        MessageHandler::set_channel(message, get_channel_id());
 
         return send_message_internal(message);
 

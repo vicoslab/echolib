@@ -97,8 +97,8 @@ PYBIND11_PLUGIN(pyecho) {
     }, "Send a writer");
 
     py::class_<BufferedMessage, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
-    .def(py::init<int, uchar*, int, bool>())
-    .def(py::init<int, MessageWriter>())
+    .def(py::init<uchar*, int, bool>())
+    .def(py::init<MessageWriter>())
     .def("getChannel", &BufferedMessage::get_channel, "Get channel");
 
     py::class_<MessageReader>(m, "MessageReader")

@@ -85,10 +85,24 @@ private:
 
 typedef shared_ptr<Buffer> SharedBuffer;
 
+class MessageHandler {
+public:
+    virtual ~MessageHandler() {};
+
+protected:
+    static void set_channel(SharedMessage message, int channel_id);
+};
+
 class Message : public std::enable_shared_from_this<Message>, public virtual Buffer {
     friend StreamReader;
     friend StreamWriter;
+    friend MessageHandler;
 public:
+
+    /**
+     *
+     */
+    Message();
 
     /**
      *
@@ -105,7 +119,7 @@ public:
      */
     int get_channel() const;
 
-    template<class T> static shared_ptr<Message> pack(int channel, const T &data);
+    template<class T> static shared_ptr<Message> pack(const T &data);
     template<typename T> static shared_ptr<T> unpack(SharedMessage message);
 
 protected:
@@ -124,11 +138,11 @@ private:
 class BufferedMessage : public Message, virtual public MemoryBuffer {
 public:
 
-    BufferedMessage(int channel, uchar *data, ssize_t length, bool owned = true);
+    BufferedMessage(uchar *data, ssize_t length, bool owned = true);
 
-    BufferedMessage(int channel, MessageWriter& writer);
+    BufferedMessage(MessageWriter& writer);
 
-    BufferedMessage(int channel, int length);
+    BufferedMessage(int length);
 
     virtual ~BufferedMessage();
 
@@ -147,7 +161,7 @@ private:
 class MultiBufferMessage : public Message {
 public:
 
-    MultiBufferMessage(int channel, const vector<SharedBuffer> &buffers);
+    MultiBufferMessage(const vector<SharedBuffer> &buffers);
 
     virtual ~MultiBufferMessage();
 
@@ -322,6 +336,8 @@ template<typename T> void write(MessageWriter& writer, const vector<T>& src) {
     }
 }
 
+typedef std::map<std::string, std::string>::const_iterator DictionaryIterator;
+
 class Dictionary : public std::enable_shared_from_this<Dictionary> {
     friend Message;
 public:
@@ -334,6 +350,11 @@ public:
     template<class T> T get( const string &key, const T &value ) const;
 
     bool contains(const string key) const;
+
+    size_t size() const;
+
+    DictionaryIterator begin() const;
+    DictionaryIterator end() const;
 
 protected:
 
@@ -541,29 +562,47 @@ void Dictionary::set(const string &key, const T &value ) {
 namespace echolib {
 
 template<>
-inline shared_ptr<echolib::Dictionary> echolib::Message::unpack(SharedMessage message) {
-    MessageReader parser(message);
+inline void read(MessageReader& reader, Dictionary& dictionary) {
 
-    try {
-
-        int n = parser.read_integer();
-        shared_ptr<Dictionary> dictionary = make_shared<Dictionary>();
-        for (int i = 0; i < n; i++) {
-            const std::string key = parser.read_string();
-            const std::string value = parser.read_string();
-            dictionary->set(key, value);
-        }
-        return dictionary;
-
-    } catch (EndOfBufferException &e) {
-        return shared_ptr<echolib::Dictionary>();
-
+    int n = reader.read_integer();
+    for (int i = 0; i < n; i++) {
+        const std::string key = reader.read_string();
+        const std::string value = reader.read_string();
+        dictionary.set(key, value);
     }
 
 }
 
 template<>
-inline shared_ptr<Message> echolib::Message::pack(int channel, const Dictionary &data) {
+inline void write(MessageWriter& writer, const Dictionary &data) {
+    DictionaryIterator iter;
+
+    writer.write_integer(data.size());
+
+    for (iter = data.begin(); iter != data.end(); ++iter) {
+        writer.write_string(iter->first);
+        writer.write_string(iter->second);
+    }
+
+}
+
+
+//template <> inline string get_type_identifier<Dictionary>() { return string("dictionary"); }
+
+template<>
+inline shared_ptr<Dictionary> Message::unpack(SharedMessage message) {
+
+    MessageReader reader(message);
+    
+    shared_ptr<echolib::Dictionary> dictionary(new echolib::Dictionary);
+
+    read(reader, *dictionary);
+
+    return dictionary;
+}
+
+template<>
+inline shared_ptr<Message> Message::pack(const Dictionary &data) {
     std::map<std::string, std::string>::const_iterator iter;
 
     int length = 0;
@@ -574,16 +613,10 @@ inline shared_ptr<Message> echolib::Message::pack(int channel, const Dictionary 
 
     MessageWriter writer(length);
 
-    writer.write_integer(data.arguments.size());
+    write(writer, data);
 
-    for (iter = data.arguments.begin(); iter != data.arguments.end(); ++iter) {
-        writer.write_string(iter->first);
-        writer.write_string(iter->second);
-    }
-
-    return make_shared<BufferedMessage>(channel, writer);
+    return make_shared<BufferedMessage>(writer);
 }
-
 
 }
 

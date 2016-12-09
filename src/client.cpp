@@ -436,7 +436,9 @@ void Client::send_command(SharedDictionary command, function<bool(SharedDictiona
 
     pair<SharedDictionary, function<bool(SharedDictionary, SharedDictionary)> > pending(command, callback);
     requests[key] = pending;
-    send(Message::pack<Dictionary>(ECHO_CONTROL_CHANNEL, *command));
+    shared_ptr<Message> message = Message::pack<Dictionary>(*command);
+    MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
+    send(message);
 
 }
 
@@ -559,7 +561,9 @@ void ChunkedSubscriber::on_chunk(SharedMessage chunk) {
     if (pending[id]->is_complete()) {
         shared_ptr<PendingBuffer> buffer = pending[id];
         pending.erase(id);
-        on_message(make_shared<BufferedMessage>(chunk->get_channel(), *buffer));
+        shared_ptr<Message> msg = make_shared<BufferedMessage>(*buffer);
+        MessageHandler::set_channel(msg, chunk->get_channel());
+        on_message(msg);
     }
 
 }
@@ -682,7 +686,9 @@ bool Publisher::send_message(uchar* data, int length) {
 
     if (id <= 0) return false;
 
-    return send_message_internal(make_shared<BufferedMessage>(id, data, length));
+    shared_ptr<Message> msg = make_shared<BufferedMessage>(data, length);
+    MessageHandler::set_channel(msg, id);
+    return send_message_internal(msg);
 
 }
 
@@ -690,7 +696,9 @@ bool Publisher::send_message(MessageWriter& writer) {
 
     if (id <= 0) return false;
 
-    return send_message_internal(make_shared<BufferedMessage>(id, writer));
+    shared_ptr<Message> msg = make_shared<BufferedMessage>(writer);
+    MessageHandler::set_channel(msg, id);
+    return send_message_internal(msg);
 
 }
 
@@ -743,7 +751,8 @@ bool ChunkedPublisher::send_message_internal(SharedMessage message) {
         buffers.push_back(header);
         buffers.push_back(make_shared<ProxyBuffer>(message, position, clen));
 
-        shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(get_channel_id(), buffers);
+        shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(buffers);
+        MessageHandler::set_channel(chunk, get_channel_id());
 
         Publisher::send_message_internal(chunk);
 

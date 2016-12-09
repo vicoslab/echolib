@@ -15,7 +15,7 @@ namespace echolib {
 class Client;
 typedef std::shared_ptr<Client> SharedClient;
 
-class Channel {
+class Channel : public MessageHandler {
 
   public:
 
@@ -91,7 +91,7 @@ class Client {
 };
 
 
-class Router {
+class Router : public MessageHandler {
 
   public:
     Router();

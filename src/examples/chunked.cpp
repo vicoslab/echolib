@@ -16,17 +16,14 @@ using namespace echolib;
 
 namespace echolib {
 
-template <> struct TypeIdentifier<string> {
-    static const char* name;
-};
-const char* TypeIdentifier<string>::name = "string";
+template <> inline string get_type_identifier<string>() { return string("string"); }
 
-template<> inline shared_ptr<Message> echolib::Message::pack<string>(int channel, const string &data) {
+template<> inline shared_ptr<Message> echolib::Message::pack<string>(const string &data) {
     MessageWriter writer(data.size() + sizeof(int));
 
     writer.write_string(data);
 
-    return make_shared<BufferedMessage>(channel, writer);
+    return make_shared<BufferedMessage>(writer);
 }
 
 template<> inline shared_ptr<string> echolib::Message::unpack<string>(SharedMessage message) {

@@ -172,8 +172,8 @@ bool Channel::subscribe(SharedClient client) {
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
         status->set<string>("type", "subscribe");
-        SharedMessage message = Message::pack<Dictionary>(ECHO_CONTROL_CHANNEL, *status);
-
+        SharedMessage message = Message::pack<Dictionary>(*status);
+        MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
         for (std::set<SharedClient>::iterator it = watchers.begin(); it != watchers.end(); ++it) {
             (*it)->send(message);
         }
@@ -196,8 +196,8 @@ bool Channel::unsubscribe(SharedClient client) {
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
         status->set<string>("type", "unsubscribe");
-        SharedMessage message = Message::pack<Dictionary>(ECHO_CONTROL_CHANNEL, *status);
-
+        SharedMessage message = Message::pack<Dictionary>(*status);
+        MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
         for (std::set<SharedClient>::iterator it = watchers.begin(); it != watchers.end(); ++it) {
             (*it)->send(message);
         }
@@ -218,7 +218,8 @@ bool Channel::watch(SharedClient client) {
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
         status->set<string>("type", "summary");
-        SharedMessage message = Message::pack<Dictionary>(ECHO_CONTROL_CHANNEL, *status);
+        SharedMessage message = Message::pack<Dictionary>(*status);
+        MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
         client->send(message);
 
         return true;
@@ -335,7 +336,9 @@ void Router::handle_message(SharedClient client, SharedMessage message) {
         SharedDictionary command = Message::unpack<Dictionary>(message);
         SharedDictionary response = handle_command(client, command);
         if (response) {
-            client->send(Message::pack<Dictionary>(ECHO_CONTROL_CHANNEL, *response));
+            SharedMessage message = Message::pack<Dictionary>(*response);
+            MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
+            client->send(message);
         }
         return;
     }

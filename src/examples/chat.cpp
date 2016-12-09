@@ -15,21 +15,21 @@ using namespace echolib;
 
 namespace echolib {
 
-template <> struct TypeIdentifier<pair<string, string> > {
-    static const char* name;
-};
-const char* TypeIdentifier<pair<string, string> >::name = "string pair";
+//template <> inline string get_type_identifier<echolib::Dictionary>() { return string("dictionary"); }
 
-template<> inline shared_ptr<Message> echolib::Message::pack<pair<string, string> >(int channel, const pair<string, string> &data) {
+
+template <> inline string get_type_identifier<pair<string, string> >() { return string("string pair"); }
+
+template<> inline shared_ptr<Message> Message::pack<pair<string, string> >(const pair<string, string> &data) {
     MessageWriter writer(data.first.size() + data.second.size() + 8);
 
     writer.write_string(data.first);
     writer.write_string(data.second);
 
-    return make_shared<BufferedMessage>(channel, writer);
+    return make_shared<BufferedMessage>(writer);
 }
 
-template<> inline shared_ptr<pair<string, string> > echolib::Message::unpack<pair<string, string> >(SharedMessage message) {
+template<> inline shared_ptr<pair<string, string> > Message::unpack<pair<string, string> >(SharedMessage message) {
     MessageReader reader(message);
 
     string user = reader.read_string();

@@ -82,23 +82,27 @@ template<class F> WatchCallback create_watch_callback(F f) {
     return WatchCallback(new std::function<void(SharedDictionary)>(f));
 }
 
-class Client :  public MessageHandler, public std::enable_shared_from_this<Client> {
+class Client : public MessageHandler, public std::enable_shared_from_this<Client> {
     friend Subscriber;
     friend Publisher;
     friend Watcher;
 public:
 
-    Client(const string& socket);
-    Client(const string& address, int type);
+    Client();
+    Client(const string& address);
     virtual ~Client();
 
     virtual bool wait(long timeout = -1);
+
+    virtual bool handle();
 
     bool is_connected();
 
     bool disconnect();
 
     int get_queue_size();
+
+    int get_file_descriptor();
 
 protected:
 

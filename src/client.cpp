@@ -25,7 +25,6 @@
 
 namespace echolib {
 
-
 static int make_socket_non_blocking (int sfd) {
     int flags, s;
 
@@ -45,34 +44,8 @@ static int make_socket_non_blocking (int sfd) {
     return 1;
 }
 
-static int connect_socket(const string &path) {
+static int connect_socket(const string& address) {
 
-    int len, fd;
-    struct sockaddr_un remote;
-
-    if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-        throw runtime_error("Unable to create socket");
-    }
-
-    remote.sun_family = AF_UNIX;
-    strcpy(remote.sun_path, path.c_str());
-
-    len = strlen(remote.sun_path) + sizeof(remote.sun_family);
-    if (connect(fd, (struct sockaddr *)&remote, len) == -1) {
-        throw runtime_error("Unable to connect socket");
-    }
-
-    if (!make_socket_non_blocking(fd)) {
-        throw runtime_error("Unable to set socket to non-blocking mode");
-    }
-
-    return fd;
-}
-
-const int Client::TYPE_INET = 1;
-const int Client::TYPE_LOCAL = 0;
-
-SharedClient connect(const string& address) {
     string temp = address;
 
     if (temp.empty()) {
@@ -88,61 +61,64 @@ SharedClient connect(const string& address) {
     if (split != string::npos) {
         string host = temp.substr(0, split);
         int port = atoi(temp.substr(split + 1).c_str());
-        return make_shared<Client>(host, port);
-    } else
-        return make_shared<Client>(temp);
+
+        int fd;
+        struct sockaddr_in remote;
+
+        if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+            throw runtime_error("Unable to create socket");
+        }
+
+        remote.sin_family = AF_INET;
+        inet_pton(AF_INET, host.c_str(), &(remote.sin_addr));
+        remote.sin_port = htons(port);
+        if (connect(fd, (struct sockaddr *) &remote, sizeof(remote)) == -1) {
+            perror("connect");
+            throw runtime_error("Unable to connect to host " + host);
+        }
+
+        if (!make_socket_non_blocking(fd)) {
+            throw runtime_error("Unable to set socket to non-blocking mode");
+        }
+        return fd;
+
+    } else {
+        int len, fd;
+        struct sockaddr_un remote;
+
+        if ((fd = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+            throw runtime_error("Unable to create socket");
+        }
+
+        remote.sun_family = AF_UNIX;
+        strcpy(remote.sun_path, temp.c_str());
+
+        len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+        if (connect(fd, (struct sockaddr *)&remote, len) == -1) {
+            throw runtime_error("Unable to connect to socket " + temp);
+        }
+
+        if (!make_socket_non_blocking(fd)) {
+            throw runtime_error("Unable to set socket to non-blocking mode");
+        }
+
+        return fd;
+    }
 
 }
 
-static int connect_socket(const string &host, int port) {
+SharedClient connect(const string& address) {
 
-    int fd;
-    struct sockaddr_in remote;
+    return make_shared<Client>(address);
 
-    if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-        throw runtime_error("Unable to create socket");
-    }
-
-    remote.sin_family = AF_INET;
-    inet_pton(AF_INET, host.c_str(), &(remote.sin_addr));
-    remote.sin_port = htons(port);
-    if (connect(fd, (struct sockaddr *) &remote, sizeof(remote)) == -1) {
-        perror("connect");
-        throw runtime_error("Unable to connect socket");
-    }
-
-    if (!make_socket_non_blocking(fd)) {
-        throw runtime_error("Unable to set socket to non-blocking mode");
-    }
-    return fd;
 }
 
-Client::Client(const string &socket) : fd(connect_socket(socket)), writer(fd), reader(fd),
+Client::Client() : Client("") { }
+
+Client::Client(const string &address) : fd(connect_socket(address)), writer(fd), reader(fd), 
     next_request_key(0), subscriptions(), watches() {
+
     __debug_enable();
-
-    initialize_common();
-
-    struct epoll_event event;
-    efd = epoll_create1 (0);
-    if (efd == -1) {
-        throw runtime_error("Unable to use epoll");
-    }
-
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-    if (epoll_ctl (efd, EPOLL_CTL_ADD, fd, &event) == -1) {
-        throw runtime_error("Unable to use epoll");
-    }
-
-    connected = true;
-
-}
-
-Client::Client(const string &host, int port) : fd(connect_socket(host, port)), writer(fd), reader(fd),
-    next_request_key(0), subscriptions(), watches() {
-    __debug_enable();
-
     initialize_common();
 
     struct epoll_event event;
@@ -224,39 +200,51 @@ bool Client::wait(long timeout) {
             }
         }
 
-
         // Reading phase
         // TODO: handle timeout
-        while (true) {
-            SharedMessage msg = reader.read_message();
 
-            if (!msg) {
-                if (reader.get_error()) {
-                    disconnect();
-                    free(events);
-                    return is_connected();
-                }
-                break;
-            } else {
-                handle_message(msg);
-            }
-
-        }
-
-        //Writing phase
-        if (!writer.write_messages()) {
-            if (writer.get_error()) {
-                DEBUGMSG("Writer error: %d\n", writer.get_error());
-                disconnect();
-                free(events);
-                return is_connected();
-            }
-        }
+        handle();
 
     }
 
     free(events);
     return is_connected();
+
+}
+
+bool Client::handle() {
+
+    while (true) {
+        SharedMessage msg = reader.read_message();
+
+        if (!msg) {
+            if (reader.get_error()) {
+                disconnect();
+                return is_connected();
+            }
+            break;
+        } else {
+            handle_message(msg);
+        }
+
+    }
+
+    //Writing phase
+    if (!writer.write_messages()) {
+        if (writer.get_error()) {
+            DEBUGMSG("Writer error: %d\n", writer.get_error());
+            disconnect();
+            return is_connected();
+        }
+    }
+
+    return is_connected();
+
+}
+
+int Client::get_file_descriptor() {
+
+    return fd;
 
 }
 

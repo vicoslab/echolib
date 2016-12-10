@@ -17,14 +17,13 @@ typedef function<void(string)> MessageCallback;
 
 class PySubscriber : public Subscriber, public std::enable_shared_from_this<PySubscriber> {
   public:
-    PySubscriber(SharedClient client, const string &alias, const string &type, function<void(MessageReader)> callback) : Subscriber(client, alias, type), callback(callback) {
+    PySubscriber(SharedClient client, const string &alias, const string &type, function<void(SharedMessage)> callback) : Subscriber(client, alias, type), callback(callback) {
 
     }
 
     virtual void on_message(SharedMessage message) {
-        MessageReader reader(message);
         py::gil_scoped_acquire gil; // acquire GIL lock
-        callback(reader);
+        callback(message);
     }
 
     using Subscriber::subscribe;
@@ -32,7 +31,7 @@ class PySubscriber : public Subscriber, public std::enable_shared_from_this<PySu
 
   private:
 
-    function<void(MessageReader)> callback;
+    function<void(SharedMessage)> callback;
 
 };
 
@@ -56,7 +55,10 @@ PYBIND11_PLUGIN(pyecho) {
 
     py::class_<Client, std::shared_ptr<Client> >(m, "Client")
     .def(py::init<string>())
+    .def(py::init())
     .def("disconnect", &Client::disconnect, "Disconnect the client")
+    .def("handle", &Client::handle, "Handle input and output messages")
+    .def("fd", &Client::get_file_descriptor, "Get access to low-level file descriptor")
     .def("wait", [](Client& c, long timeout) {
         py::gil_scoped_release gil; // release GIL lock
         return c.wait(timeout);
@@ -64,7 +66,7 @@ PYBIND11_PLUGIN(pyecho) {
     .def("isConnected", &Client::is_connected, "Check if the client is connected");
 
     py::class_<Subscriber, PySubscriber, std::shared_ptr<Subscriber> >(m, "Subscriber")
-    .def(py::init<SharedClient, string, string, function<void(MessageReader)> >())
+    .def(py::init<SharedClient, string, string, function<void(SharedMessage)> >())
     .def("subscribe", [](PySubscriber &a) {
         py::gil_scoped_release gil; // release GIL lock
         return a.subscribe();
@@ -96,12 +98,16 @@ PYBIND11_PLUGIN(pyecho) {
         return p.send_message(message);
     }, "Send a writer");
 
-    py::class_<BufferedMessage, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
+    py::class_<Message, std::shared_ptr<Message> >(m, "Message")
+    .def("getChannel", &BufferedMessage::get_channel, "Get channel");
+
+    py::class_<BufferedMessage, Message, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
     .def(py::init<uchar*, int, bool>())
     .def(py::init<MessageWriter>())
     .def("getChannel", &BufferedMessage::get_channel, "Get channel");
 
     py::class_<MessageReader>(m, "MessageReader")
+    .def(py::init<SharedMessage>())
     .def("readInt", &MessageReader::read_integer, "Read an integer")
     .def("readLong", &MessageReader::read_long, "Read a long")
     .def("readChar", &MessageReader::read_char, "Read a char")

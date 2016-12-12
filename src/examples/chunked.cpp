@@ -46,7 +46,9 @@ inline std::string slurp (const std::string& path) {
 
 int main(int argc, char** argv) {
 
-    SharedClient client = make_shared<echolib::Client>(string(argv[1]));
+    IOLoop loop;
+
+    SharedClient client = make_shared<echolib::Client>(loop, string(argv[1]));
 
     if (argc > 2) {
 
@@ -63,7 +65,7 @@ int main(int argc, char** argv) {
 
         int counter = 0;
 
-        while(client->wait(10)) {
+        while(loop.wait(10)) {
             counter++;
             if (write && counter == 50) {
                 std::cout << "Writing data" << std::endl;
@@ -81,7 +83,7 @@ int main(int argc, char** argv) {
 
         TypedSubscriber<string, true> sub(client, "chunked", chunked_callback);
 
-        while(client->wait(10)) {
+        while(loop.wait(10)) {
         }
 
     }

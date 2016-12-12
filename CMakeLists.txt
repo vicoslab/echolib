@@ -26,6 +26,7 @@ endif()
 
 # echo shared library
 add_library(echo SHARED
+    src/loop.cpp
     src/message.cpp
     src/client.cpp
     src/debug.cpp
@@ -41,6 +42,7 @@ set_target_properties(echo PROPERTIES
 
 install(TARGETS echo EXPORT echolib_targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES
+    src/loop.h
     src/client.h
     src/message.h
     src/datatypes.h

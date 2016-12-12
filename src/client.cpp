@@ -4,7 +4,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <fcntl.h>
-#include <sys/epoll.h>
 #include <errno.h>
 #include <stdexcept>
 #include <exception>
@@ -121,19 +120,13 @@ Client::Client(const string &address) : fd(connect_socket(address)), writer(fd),
     __debug_enable();
     initialize_common();
 
-    struct epoll_event event;
-    efd = epoll_create1 (0);
-    if (efd == -1) {
-        throw runtime_error("Unable to use epoll");
-    }
-
-    event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-    if (epoll_ctl (efd, EPOLL_CTL_ADD, fd, &event) == -1) {
-        throw runtime_error("Unable to use epoll");
-    }
-
     connected = true;
+
+}
+
+Client::Client(IOLoop& loop, const string& address) : Client(address) {
+
+    loop.add_handler(shared_ptr<Client>(this));
 
 }
 
@@ -172,43 +165,6 @@ void Client::initialize_common() {
             mappings[from] = to;
         } 
     }
-
-}
-
-bool Client::wait(long timeout) {
-    SYNCHRONIZED(mutex);
-
-    struct epoll_event *events;
-    events = (epoll_event *) calloc (MAXEVENTS, sizeof(epoll_event));
-
-    auto start = std::chrono::system_clock::now();
-    while (true) {
-        auto current = std::chrono::system_clock::now();
-
-        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start);
-        long remaining = timeout - (duration.count());
-        if (remaining < 1)
-            break;
-
-        int n = epoll_wait (efd, events, MAXEVENTS, remaining);
-        for (int i = 0; i < n; i++) {
-            if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
-                perror("epoll");
-                disconnect();
-                free(events);
-                return is_connected();
-            }
-        }
-
-        // Reading phase
-        // TODO: handle timeout
-
-        handle();
-
-    }
-
-    free(events);
-    return is_connected();
 
 }
 
@@ -257,7 +213,7 @@ bool Client::is_connected() {
     return connected;
 }
 
-bool Client::disconnect() {
+void Client::disconnect() {
     SYNCHRONIZED(mutex);
 
     if (is_connected()) {
@@ -266,7 +222,6 @@ bool Client::disconnect() {
     }
 
     connected = false;
-    return true;
 
 }
 

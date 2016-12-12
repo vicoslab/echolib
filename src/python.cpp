@@ -53,16 +53,22 @@ PYBIND11_PLUGIN(pyecho) {
 
     py::module m("pyecho", "Echo IPC library Python bindings");
 
+    py::class_<IOLoop, std::shared_ptr<IOLoop> >(m, "IOLoop")
+    .def(py::init())
+    .def("add_handler", &IOLoop::add_handler, "Register handler")
+    .def("remove_handler", &IOLoop::remove_handler, "Unregister handler")
+    .def("wait", [](IOLoop& c, long timeout) {
+        py::gil_scoped_release gil; // release GIL lock
+        return c.wait(timeout);
+    }, "Wait for more messages");
+
     py::class_<Client, std::shared_ptr<Client> >(m, "Client")
     .def(py::init<string>())
+    .def(py::init<IOLoop&, string>())
     .def(py::init())
     .def("disconnect", &Client::disconnect, "Disconnect the client")
     .def("handle", &Client::handle, "Handle input and output messages")
     .def("fd", &Client::get_file_descriptor, "Get access to low-level file descriptor")
-    .def("wait", [](Client& c, long timeout) {
-        py::gil_scoped_release gil; // release GIL lock
-        return c.wait(timeout);
-    }, "Wait for more messages")
     .def("isConnected", &Client::is_connected, "Check if the client is connected");
 
     py::class_<Subscriber, PySubscriber, std::shared_ptr<Subscriber> >(m, "Subscriber")

@@ -5,8 +5,8 @@ import time
 import echolib
 import thread
 
-
-def message(reader):
+def message(message):
+    reader = echolib.MessageReader(message)
     name = reader.readString()
     message = reader.readString()
     print name + ": " + message
@@ -23,7 +23,9 @@ def main():
     if len(sys.argv) < 2:
         raise Exception('Missing socket')
 
-    client = echolib.Client(sys.argv[1])
+    loop = echolib.IOLoop()
+
+    client = echolib.Client(loop, sys.argv[1])
 
     name = raw_input("Please enter your name:")   
 
@@ -33,11 +35,11 @@ def main():
 
     thread.start_new_thread(write,(client,pub,name,))
     try:
-        while client.wait(10):
+        while loop.wait(10):
             # We have to give the write thread some space
             time.sleep(0.001)
     except KeyboardInterrupt:
-        client.disconnect()
+        pass
 
     sys.exit(1)
 

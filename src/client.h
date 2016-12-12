@@ -11,6 +11,7 @@
 #include <mutex>
 #include <type_traits>
 
+#include "loop.h"
 #include "message.h"
 
 using namespace std;
@@ -82,7 +83,7 @@ template<class F> WatchCallback create_watch_callback(F f) {
     return WatchCallback(new std::function<void(SharedDictionary)>(f));
 }
 
-class Client : public MessageHandler, public std::enable_shared_from_this<Client> {
+class Client : public IOBase, public MessageHandler, public std::enable_shared_from_this<Client> {
     friend Subscriber;
     friend Publisher;
     friend Watcher;
@@ -90,19 +91,18 @@ public:
 
     Client();
     Client(const string& address);
+    Client(IOLoop& loop, const string& address = string());
     virtual ~Client();
-
-    virtual bool wait(long timeout = -1);
 
     virtual bool handle();
 
     bool is_connected();
 
-    bool disconnect();
+    virtual void disconnect();
 
     int get_queue_size();
 
-    int get_file_descriptor();
+    virtual int get_file_descriptor();
 
 protected:
 
@@ -125,7 +125,7 @@ private:
     bool handle_subscribe_response (SharedDictionary sent, SharedDictionary received);
     void handle_message(SharedMessage &message);
 
-    int fd, efd;
+    int fd;
     bool connected;
     StreamWriter writer;
     StreamReader reader;

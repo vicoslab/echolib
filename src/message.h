@@ -213,6 +213,11 @@ public:
     long read_long();
 
     /**
+     * @return next Boolean value
+     */
+    bool read_bool();
+
+    /**
      * @return next character
      */
     char read_char();
@@ -250,6 +255,10 @@ template<> inline string MessageReader::read<string>() {
     return read_string();
 }
 
+template<> inline bool MessageReader::read<bool>() {
+    return read_bool();
+}
+
 template<typename T> void read(MessageReader& reader, T& dst) {
     static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported");
     dst = reader.read<T>();
@@ -260,7 +269,7 @@ template<> inline void read(MessageReader& reader, string& dst) {
 }
 
 template<typename T> void read(MessageReader& reader, vector<T>& dst) {
-    size_t n = reader.read<size_t>();
+    int n = reader.read<int>();
     dst.resize(n);
     for (size_t i = 0; i < n; i++) {
         read(reader, dst[i]);
@@ -291,6 +300,8 @@ public:
 
     int write_long(long value);
 
+    int write_bool(bool value);
+
     int write_char(char value);
 
     int write_float(float value);
@@ -319,6 +330,10 @@ template<> inline void MessageWriter::write<string>(const string& value) {
     write_string(value);
 }
 
+template<> inline void MessageWriter::write<bool>(const bool& value) {
+    write_bool(value);
+}
+
 template<typename T> void write(MessageWriter& writer, const T& src) {
     static_assert(std::is_arithmetic<T>::value, "Only primitive numeric types supported here");
     writer.write<T>(src);
@@ -329,7 +344,7 @@ template<> inline void write(MessageWriter& writer, const string& src) {
 }
 
 template<typename T> void write(MessageWriter& writer, const vector<T>& src) {
-    writer.write<size_t>(src.size());
+    writer.write<int>((int)src.size());
     
     for (size_t i = 0; i < src.size(); i++) {
         write(writer, src[i]);

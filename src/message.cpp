@@ -24,7 +24,7 @@ namespace echolib {
 
 
 const char* EndOfBufferException::what() const throw() {
-    return "Unable to parse message";
+    return "End of buffer";
 }
 
 MessageReader::~MessageReader() {
@@ -44,6 +44,17 @@ int MessageReader::read_integer() {
     return result;
 
 }
+
+bool MessageReader::read_bool() {
+
+    char result = 0;
+
+    copy_data((uchar*) &result, (ssize_t)sizeof(char));
+
+    return result > 0;
+
+}
+
 
 long MessageReader::read_long() {
 
@@ -183,6 +194,12 @@ int MessageWriter::write_buffer(MessageReader& reader, ssize_t len) {
 int MessageWriter::write_integer(int value) {
 
     return write_buffer((uchar *) &value, sizeof(int));
+
+}
+
+int MessageWriter::write_bool(bool value) {
+    int v = value ? 1 : 0;
+    return write_buffer((uchar *) &v, sizeof(char));
 
 }
 

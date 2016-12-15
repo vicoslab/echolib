@@ -1,6 +1,6 @@
 Source: echolib
 Priority: optional
-Maintainer: Rok Mandeljc <rok.mandeljc@gmail.com>
+Maintainer: Luka Cehovin <luka.cehovin@gmail.com>
 Build-Depends: debhelper (>= 9),
                cmake (>= 2.8.11),
                pybind11-dev (>= 2.0.0),

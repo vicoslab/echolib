@@ -106,9 +106,9 @@ static int connect_socket(const string& address) {
 
 }
 
-SharedClient connect(const string& address) {
+SharedClient connect(IOLoop& loop, const string& address) {
 
-    return make_shared<Client>(address);
+    return make_shared<Client>(loop, address);
 
 }
 
@@ -592,7 +592,7 @@ bool Watcher::unwatch() {
     return client->unwatch(id, callback);
 }
 
-void Publisher::lookup_callback(SharedDictionary lookup) {
+void Publisher::lookup_callback(const string alias, SharedDictionary lookup) {
 
     if (lookup->contains("error")) {
         DEBUGMSG("Publisher error: %s\n", lookup->get<string>("error").c_str());
@@ -612,7 +612,7 @@ Publisher::Publisher(SharedClient client, const string &alias, const string &typ
 
     using namespace std::placeholders;
 
-    client->lookup_channel(alias, type, bind(&Publisher::lookup_callback, this, _1));
+    client->lookup_channel(alias, type, bind(&Publisher::lookup_callback, this, alias, _1));
 }
 
 Publisher::~Publisher() {

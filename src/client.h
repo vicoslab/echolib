@@ -143,7 +143,7 @@ private:
 
 };
 
-SharedClient connect(const string& socket = string());
+SharedClient connect(IOLoop& loop, const string& socket = string());
 
 class Subscriber : public MessageHandler {
     friend Client;
@@ -272,7 +272,7 @@ protected:
 
 private:
 
-    void lookup_callback(SharedDictionary lookup);
+    void lookup_callback(const string alias, SharedDictionary lookup);
 
     SharedClient client;
     int id = -1;

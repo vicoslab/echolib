@@ -34,6 +34,7 @@ class Channel : public MessageHandler {
     bool is_watching(SharedClient client);
 
     string get_type() const;
+    bool set_type(const string& type);
     int get_identifier() const;
 
   private:

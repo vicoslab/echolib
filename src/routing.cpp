@@ -140,6 +140,15 @@ string Channel::get_type() const {
     return type;
 }
 
+bool Channel::set_type(const string& t) {
+    if (type.empty()) {
+        type = t;
+        DEBUGMSG("Updating type for channel %d (type: %s)\n", identifier, type.c_str());
+        return true; 
+    }
+    return false;
+}
+
 bool Channel::publish(SharedClient client, SharedMessage message) {
 
     // TODO: CHECK PERMISSION !
@@ -400,7 +409,8 @@ SharedDictionary Router::handle_command(SharedClient client, SharedDictionary co
 
         int id = aliases[channel_alias];
 
-        if (channel_type.empty() || channels[id]->get_type() == channel_type) {
+        if (channel_type.empty() || channels[id]->get_type().empty() || channels[id]->get_type() == channel_type) {
+            channels[id]->set_type(channel_type);
             SharedDictionary command = generate_command(ECHO_COMMAND_RESULT);
             command->set<string>("alias", channel_alias);
             command->set<string>("type", channels[id]->get_type());

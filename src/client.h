@@ -91,10 +91,11 @@ public:
 
     Client();
     Client(const string& address);
-    Client(IOLoop& loop, const string& address = string());
     virtual ~Client();
 
-    virtual bool handle();
+    virtual bool handle_input();
+
+    virtual bool handle_output();
 
     bool is_connected();
 
@@ -143,7 +144,7 @@ private:
 
 };
 
-SharedClient connect(IOLoop& loop, const string& socket = string());
+SharedClient connect(const string& socket = string(), SharedIOLoop loop = default_loop());
 
 class Subscriber : public MessageHandler {
     friend Client;

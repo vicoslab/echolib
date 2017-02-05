@@ -16,6 +16,27 @@
 
 using namespace std;
 
+namespace std {
+
+template<typename T, class Compare>
+class emptiable_priority_queue : public priority_queue<T, std::vector<T>, Compare>
+{
+public:
+
+    emptiable_priority_queue(const Compare& comparator) : priority_queue<T, std::vector<T>, Compare>(comparator) {}
+
+    const T retract() {
+        if (this->c.empty()) throw std::runtime_error("Empty queue");
+        auto it = this->c.end()-1;
+        auto obj = *it;
+        this->c.erase(it);
+        std::make_heap(this->c.begin(), this->c.end(), this->comp);
+        return obj;
+    }
+};
+
+}
+
 #define ECHO_CONTROL_CHANNEL 0
 
 // TODO: change this to strings
@@ -32,6 +53,7 @@ using namespace std;
 #define ECHO_COMMAND_SUBSCRIBE_ALIAS 6
 #define ECHO_COMMAND_CREATE_CHANNEL_WITH_ALIAS 7
 #define ECHO_COMMAND_CREATE_CHANNEL 8
+
 namespace echolib {
 
 class StreamReader;
@@ -345,7 +367,7 @@ template<> inline void write(MessageWriter& writer, const string& src) {
 
 template<typename T> void write(MessageWriter& writer, const vector<T>& src) {
     writer.write<int>((int)src.size());
-    
+
     for (size_t i = 0; i < src.size(); i++) {
         write(writer, src[i]);
     }
@@ -404,13 +426,13 @@ public:
 
     SharedMessage read_message();
 
-    int get_error();
+    int get_error() const;
 
-    //todo: za test
-    int fd;
+    unsigned long get_read_data() const;
+
 private:
 
-
+    int fd;
 
     void reset();
 
@@ -425,6 +447,7 @@ private:
     uchar *data;
     int data_length;
     int data_current;
+    long data_read_counter;
     long total_data_read;
 
     uchar *buffer;
@@ -436,16 +459,22 @@ private:
 class StreamWriter {
 public:
 
-    StreamWriter(int fd);
+    StreamWriter(int fd, int size = -1);
     ~StreamWriter();
 
-    void add_message(const SharedMessage msg, int priority);
+    bool add_message(const SharedMessage msg, int priority);
 
     bool write_messages();
 
-    int get_error();
+    int get_error() const;
 
-    int get_queue_size();
+    int get_queue_size() const;
+
+    int get_queue_limit() const;
+
+    unsigned long get_written_data() const;
+
+    unsigned long get_dropped_data() const;
 
 protected:
 
@@ -478,7 +507,7 @@ private:
 
     int error;
 
-    priority_queue<MessageContainer, vector<MessageContainer>, function<bool(MessageContainer, MessageContainer)> > incoming;
+    emptiable_priority_queue<MessageContainer, function<bool(MessageContainer, MessageContainer)> > incoming;
 
     MessageContainer pending;
 
@@ -492,6 +521,10 @@ private:
 
     unsigned long time;
 
+    unsigned long total_data_written;
+    unsigned long total_data_dropped;
+
+    int size;
 };
 
 template<class T>
@@ -608,7 +641,7 @@ template<>
 inline shared_ptr<Dictionary> Message::unpack(SharedMessage message) {
 
     MessageReader reader(message);
-    
+
     shared_ptr<echolib::Dictionary> dictionary(new echolib::Dictionary);
 
     read(reader, *dictionary);

@@ -244,8 +244,9 @@ ssize_t MessageWriter::get_length() {
 StreamReader::StreamReader(int fd) : fd(fd) {
     data = NULL;
     buffer_length = 0;
-    total_data_read=0;
-    buffer_position=0;
+    total_data_read = 0;
+    data_read_counter = 0;
+    buffer_position = 0;
 
     buffer = (uchar *) malloc(sizeof(char) * BUFFER_SIZE);
     reset();
@@ -299,14 +300,18 @@ shared_ptr<Message> StreamReader::read_message() {
 
 }
 
-int StreamReader::get_error() {
+int StreamReader::get_error() const {
     return error;
 }
 
 
+unsigned long StreamReader::get_read_data() const {
+    return total_data_read;
+}
+
 void StreamReader::reset() {
     state = 0;
-    total_data_read=0;
+    data_read_counter = 0;
     data_length = 0;
     message_channel  = 0;
     data_current = 0;
@@ -349,7 +354,7 @@ shared_ptr<Message> StreamReader::process_buffer() {
         case 6:
         case 7:
         case 8: {
-            data_length = data_length<< 8;
+            data_length = data_length << 8;
             data_length |= (int) buffer[i];
             state++;
             break;
@@ -365,15 +370,15 @@ shared_ptr<Message> StreamReader::process_buffer() {
 
         } //intentional fallthrough
         case 10: {
-            total_data_read += buffer_length - i;
-            if (total_data_read >= data_length) {
-                memcpy(&(data[data_current]), &(buffer[i]), data_length-data_current);
-                i += data_length-data_current;
+            data_read_counter += buffer_length - i;
+            if (data_read_counter >= data_length) {
+                memcpy(&(data[data_current]), &(buffer[i]), data_length - data_current);
+                i += data_length - data_current;
                 complete = true;
 
             } else {
                 memcpy(&(data[data_current]), &(buffer[i]), buffer_length - i - 1);
-                data_current+=buffer_length-i;
+                data_current += buffer_length - i;
                 state = 10; // Wait for more data
                 i = buffer_length;
 
@@ -392,6 +397,7 @@ shared_ptr<Message> StreamReader::process_buffer() {
 
         if (complete) {
             shared_ptr<Message> ptr(make_shared<BufferedMessage>(data, data_length, true));
+            total_data_read += data_length;
             ptr->set_channel(message_channel);
             data = NULL;
             buffer_position = i;
@@ -410,11 +416,13 @@ bool StreamWriter::comparator(const MessageContainer &lhs, const MessageContaine
     return (lhs.priority < rhs.priority) || (lhs.priority == rhs.priority && lhs.time > rhs.time);
 }
 
-StreamWriter::StreamWriter(int fd) : fd(fd), incoming(&StreamWriter::comparator), time(0) {
+StreamWriter::StreamWriter(int fd, int size) : fd(fd), incoming(&StreamWriter::comparator), time(0), size(size) {
 
     buffer = (uchar *) malloc(BUFFER_SIZE);
     message_position = 0;
     error = 0;
+    total_data_written = 0;
+    total_data_dropped = 0;
 }
 
 StreamWriter::~StreamWriter() {
@@ -424,24 +432,31 @@ StreamWriter::~StreamWriter() {
 
 }
 
-void StreamWriter::add_message(SharedMessage msg, int priority) {
+bool StreamWriter::add_message(SharedMessage msg, int priority) {
 
     if (incoming.empty() && !pending.message) {
         pending = MessageContainer(msg, priority, 0);
         reset();
         write_messages();
-
+        return true;
     } else {
 
         incoming.push(MessageContainer(msg, priority, time++));
 
+        if (size > 0 || get_queue_size() > size) {
+           MessageContainer c = incoming.retract();
+           total_data_dropped += c.message->get_length();
+           return false;
+        }
+        return true;
     }
+
 }
 
 bool StreamWriter::write_messages() {
     //started writing messages
     if (incoming.empty() && !pending.message) {
-        return false;
+        return true;
     }
 
     if (pending.is_empty()) {
@@ -471,10 +486,18 @@ bool StreamWriter::write_messages() {
 
 }
 
-int StreamWriter::get_error() {
+int StreamWriter::get_error() const {
 
     return error;
 
+}
+
+unsigned long StreamWriter::get_written_data() const {
+    return total_data_written;
+}
+
+unsigned long StreamWriter::get_dropped_data() const {
+    return total_data_dropped;
 }
 
 #define INTEGER_TO_ARRAY(A, I) { A[0] = (I >> 24) & 0xFF; A[1] = (I >> 16) & 0xFF; A[2] = (I >> 8) & 0xFF; A[3] = I & 0xFF; }
@@ -510,20 +533,15 @@ bool StreamWriter::process_message() {
         ssize_t count = 0;
 
         if (buffer_position < buffer_length) {
-            errno=0;
+            errno = 0;
             count = send(fd, &(buffer[buffer_position]), buffer_length - buffer_position, MSG_NOSIGNAL);
 
             if (count == -1) {
 
-                if(errno == EAGAIN || errno == EWOULDBLOCK) {
-
-                    //DEBUGMSG("Would block\n");
+                if (errno == EAGAIN || errno == EWOULDBLOCK) {
                     return false;
-
                 } else {
-
                     error = -1;
-
                 }
 
                 return false;
@@ -534,6 +552,7 @@ bool StreamWriter::process_message() {
                 return false;
             } else {
                 buffer_position += count;
+                total_data_written += count;
                 continue;
             }
 
@@ -552,8 +571,12 @@ bool StreamWriter::process_message() {
 
 }
 
-int StreamWriter::get_queue_size() {
+int StreamWriter::get_queue_size() const {
     return incoming.size();
+}
+
+int StreamWriter::get_queue_limit() const {
+    return size;
 }
 
 void MessageHandler::set_channel(SharedMessage message, int channel_id) {

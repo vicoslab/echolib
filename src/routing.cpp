@@ -16,7 +16,7 @@ inline SharedDictionary generate_error_command(long key, const std::string &mess
 
     SharedDictionary command = generate_command(ECHO_COMMAND_ERROR);
     command->set<string>("error", message);
-    command->set<int>("key",key);
+    command->set<int>("key", key);
 
     return command;
 
@@ -25,7 +25,7 @@ inline SharedDictionary generate_error_command(long key, const std::string &mess
 inline SharedDictionary generate_confirm_command(long key) {
 
     SharedDictionary command = generate_command(ECHO_COMMAND_OK);
-    command->set<int>("key",key);
+    command->set<int>("key", key);
 
     return command;
 
@@ -39,96 +39,7 @@ inline SharedDictionary generate_event_command(int channel) {
 
 }
 
-Client::Client(int sfd): fd(sfd), reader(sfd), writer(sfd), connected(true) {
-    struct ucred cr;
-    socklen_t len;
-
-    if (getsockopt(fd, SOL_SOCKET, SO_PEERCRED, &cr, &len) < 0) {
-        // Unable to determine credentials, use default
-        process_id = -1;
-        group_id = -1;
-        user_id = -1;
-    } else {
-
-        process_id = cr.pid;
-        group_id = cr.gid;
-        user_id = cr.uid;
-
-    }
-}
-
-Client::~Client() {
-
-
-}
-
-SharedMessage Client::read() {
-    if (!connected)
-        return SharedMessage();
-    SharedMessage msg = reader.read_message();
-
-    if (!msg) {
-        if (reader.get_error()) {
-            disconnect();
-        }
-
-    }
-    return msg;
-
-}
-
-bool Client::is_connected() {
-    return connected;
-}
-
-bool Client::disconnect() {
-    if(!close(fd)) {
-        DEBUGMSG("Disconnecting client FID=%d\n", fd);
-    } else {
-        perror("close");
-    }
-    connected = false;
-    return true;
-
-}
-
-void Client::send(const SharedMessage message) {
-    writer.add_message(message, 0);
-}
-
-bool Client::write() {
-    if (!connected) {
-        return false;
-    }
-    bool status = writer.write_messages();
-    if (!status) {
-        if (writer.get_error()) {
-            DEBUGMSG("Writer error FID=%d\n", fd);
-            disconnect();
-        }
-
-    }
-    return status;
-}
-
-int Client::get_process() const {
-    return process_id;
-}
-
-int Client::get_user() const {
-    return user_id;
-}
-
-int Client::get_group() const {
-
-    return group_id;
-}
-
-int Client::get_identifier() const {
-    return fd;
-}
-
-Channel::Channel(int identifier, SharedClient owner, const string& type) : identifier(identifier), type(type), owner(owner) {
+Channel::Channel(int identifier, SharedClientConnection owner, const string& type) : identifier(identifier), type(type), owner(owner) {
 
 }
 
@@ -144,17 +55,17 @@ bool Channel::set_type(const string& t) {
     if (type.empty()) {
         type = t;
         DEBUGMSG("Updating type for channel %d (type: %s)\n", identifier, type.c_str());
-        return true; 
+        return true;
     }
     return false;
 }
 
-bool Channel::publish(SharedClient client, SharedMessage message) {
+bool Channel::publish(SharedClientConnection client, SharedMessage message) {
 
     // TODO: CHECK PERMISSION !
-    std::vector<SharedClient> to_remove;
-    for (std::set<SharedClient>::iterator it = subscribers.begin(); it != subscribers.end(); ++it) {
-        if((*it)->is_connected()) {
+    std::vector<SharedClientConnection> to_remove;
+    for (std::set<SharedClientConnection>::iterator it = subscribers.begin(); it != subscribers.end(); ++it) {
+        if ((*it)->is_connected()) {
             (*it)->send(message);
         } else  {
             to_remove.push_back(*it);
@@ -162,7 +73,7 @@ bool Channel::publish(SharedClient client, SharedMessage message) {
 
     }
     //removing in top loop would invalidate the iterator
-    if(to_remove.size()>0) {
+    if (to_remove.size() > 0) {
         for (auto it = to_remove.begin(); it != to_remove.end(); ++it) {
             unsubscribe(*it);
         }
@@ -171,19 +82,19 @@ bool Channel::publish(SharedClient client, SharedMessage message) {
 
 }
 
-bool Channel::subscribe(SharedClient client) {
+bool Channel::subscribe(SharedClientConnection client) {
     if (!is_subscribed(client)) {
 
         subscribers.insert(client);
         DEBUGMSG("Client FID=%d has subscribed to channel %d (%ld total)\n",
-                 client->get_identifier(), get_identifier(), subscribers.size());
+                 client->get_file_descriptor(), get_identifier(), subscribers.size());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
         status->set<string>("type", "subscribe");
         SharedMessage message = Message::pack<Dictionary>(*status);
         MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
-        for (std::set<SharedClient>::iterator it = watchers.begin(); it != watchers.end(); ++it) {
+        for (std::set<SharedClientConnection>::iterator it = watchers.begin(); it != watchers.end(); ++it) {
             (*it)->send(message);
         }
 
@@ -194,20 +105,20 @@ bool Channel::subscribe(SharedClient client) {
     return false;
 }
 
-bool Channel::unsubscribe(SharedClient client) {
+bool Channel::unsubscribe(SharedClientConnection client) {
 
     if (is_subscribed(client)) {
 
         subscribers.erase(client);
         DEBUGMSG("Client FID=%d has unsubscribed from channel %d (%ld total)\n",
-                 client->get_identifier(), get_identifier(), subscribers.size());
+                 client->get_file_descriptor(), get_identifier(), subscribers.size());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
         status->set<string>("type", "unsubscribe");
         SharedMessage message = Message::pack<Dictionary>(*status);
         MessageHandler::set_channel(message, ECHO_CONTROL_CHANNEL);
-        for (std::set<SharedClient>::iterator it = watchers.begin(); it != watchers.end(); ++it) {
+        for (std::set<SharedClientConnection>::iterator it = watchers.begin(); it != watchers.end(); ++it) {
             (*it)->send(message);
         }
 
@@ -218,11 +129,11 @@ bool Channel::unsubscribe(SharedClient client) {
     return false;
 }
 
-bool Channel::watch(SharedClient client) {
+bool Channel::watch(SharedClientConnection client) {
     if (!is_watching(client)) {
 
         watchers.insert(client);
-        DEBUGMSG("Client FID=%d is watching channel %d\n", client->get_identifier(), get_identifier());
+        DEBUGMSG("Client FID=%d is watching channel %d\n", client->get_file_descriptor(), get_identifier());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
@@ -238,12 +149,12 @@ bool Channel::watch(SharedClient client) {
     return false;
 }
 
-bool Channel::unwatch(SharedClient client) {
+bool Channel::unwatch(SharedClientConnection client) {
 
     if (is_watching(client)) {
 
         watchers.erase(client);
-        DEBUGMSG("Client FID=%d has stopped watching channel %d\n", client->get_identifier(), get_identifier());
+        DEBUGMSG("Client FID=%d has stopped watching channel %d\n", client->get_file_descriptor(), get_identifier());
         return true;
 
     }
@@ -252,13 +163,13 @@ bool Channel::unwatch(SharedClient client) {
 }
 
 
-bool Channel::is_subscribed(SharedClient client) {
+bool Channel::is_subscribed(SharedClientConnection client) {
 
     return (subscribers.find(client) != subscribers.end());
 
 }
 
-bool Channel::is_watching(SharedClient client) {
+bool Channel::is_watching(SharedClientConnection client) {
 
     return (watchers.find(client) != watchers.end());
 
@@ -268,7 +179,7 @@ int Channel::get_identifier() const {
     return identifier;
 }
 
-Router::Router() : next_channel_id(1), received_messages_size(0) {
+Router::Router(SharedIOLoop loop, const std::string& address) : Server(loop, address), next_channel_id(1), clients(&ClientConnection::comparator), received_messages_size(0) {
 
 }
 
@@ -277,70 +188,72 @@ Router::~Router() {
 
 }
 
-void Router::handle_client(int sfd) {
-    if (clients.find(sfd) == clients.end()) {
-        DEBUGMSG("Connecting client FID=%d\n", sfd);
-        clients[sfd] = make_shared<Client>(sfd);
-    } else if(!clients[sfd]->is_connected()) {
-        clients.erase(sfd);
-        clients[sfd] = make_shared<Client>(sfd);
-    }
+string format_bytes(unsigned long b) {
 
-    SharedClient client = clients[sfd];
-    while (true) {
-        SharedMessage msg = client->read();
+    string suffix = string("b");
 
-        if (msg) {
-            received_messages_size+=(msg->get_length());
-            handle_message(client, msg);
-            //if we have received too many messages we should send the ones we currently have
-            if(received_messages_size > MAX_RECEIVED_MESSAGES_SIZE) {
-                handle_write();
-            }
-        } else {
-            if (!client->is_connected()) {
-                clients.erase(sfd);
+    if (b >= 1024) {
+        b = b >> 10;
+        if (b >= 1024) {
+            b = b >> 10;
+            if (b >= 1024) {
+                b = b >> 10;
+                suffix = string("Gb");
+            } else suffix = string("Mb");
+        } else suffix = string("kb");
+    } 
 
-            }
-            return;
-
-        }
-
-    }
-
+    return to_string(b) + suffix;
 
 }
 
-bool Router::handle_write() {
-    received_messages_size=0;
-    bool done = true;
-    for (std::map<int, SharedClient>::iterator it = clients.begin(); it != clients.end(); it++) {
-        done &= it->second->write();
+
+void Router::print_statistics() const {
+
+    cout << clients.size() << " clients connected" <<  endl;
+
+    cout << "FID\tOUT\tIN\tDROP" << endl;
+
+    for (auto client : clients) {
+        ClientStatistics stats = client->get_statistics();
+
+        cout << client->get_file_descriptor() << "\t" << format_bytes(stats.data_read) << "\t";
+
+        cout << format_bytes(stats.data_written) << "\t" << format_bytes(stats.data_dropped) << "\t";
+
+        cout << endl;
     }
-    return done;
+
 }
 
-bool Router::disconnect_client(int sfd) {
-    if(clients[sfd]) {
-        bool result = clients[sfd]->disconnect();
+void Router::handle_connect(SharedClientConnection client) {
 
-        //unsubscribe and unwatch all channels
-        for(auto ch : channels) {
-            ch.second->unsubscribe(clients[sfd]);
-            ch.second->unwatch(clients[sfd]);
-        }
-        clients.erase(sfd);
-        return result;
+    clients.insert(client);
 
-    } else {
-        DEBUGMSG("Client does not exist FID=%d\n", sfd);
-        clients.erase(sfd);
-        return false;
+}
+
+void Router::handle_disconnect(SharedClientConnection client) {
+
+    //unsubscribe and unwatch all channels
+    for (auto ch : channels) {
+        ch.second->unsubscribe(client);
+        ch.second->unwatch(client);
     }
+
+
+    clients.erase(client);
 }
 
 //TODO: Better error handling so that we cannot crash daemon
-void Router::handle_message(SharedClient client, SharedMessage message) {
+void Router::handle_message(SharedClientConnection client, SharedMessage message) {
+
+    received_messages_size += (message->get_length());
+
+    //if we have received too many messages we should send the ones we currently have
+    if (received_messages_size > MAX_RECEIVED_MESSAGES_SIZE) {
+        //    handle_write();
+    }
+
     if (message->get_channel() == ECHO_CONTROL_CHANNEL) {
         SharedDictionary command = Message::unpack<Dictionary>(message);
         SharedDictionary response = handle_command(client, command);
@@ -363,7 +276,7 @@ void Router::handle_message(SharedClient client, SharedMessage message) {
 
 }
 
-SharedChannel Router::create_channel(const string &alias, SharedClient creator, const string& type) {
+SharedChannel Router::create_channel(const string &alias, SharedClientConnection creator, const string& type) {
 
     if (aliases.find(alias) != aliases.end())
         return channels[aliases[alias]];
@@ -380,7 +293,7 @@ SharedChannel Router::create_channel(const string &alias, SharedClient creator, 
 
 }
 
-SharedDictionary Router::handle_command(SharedClient client, SharedDictionary command) {
+SharedDictionary Router::handle_command(SharedClientConnection client, SharedDictionary command) {
     if (!command->contains("key")) {
         DEBUGMSG("Received illegal command message\n");
         return SharedDictionary();
@@ -401,8 +314,8 @@ SharedDictionary Router::handle_command(SharedClient client, SharedDictionary co
         if (!found && !create)
             return generate_error_command(key, "Channel does not exist");
 
-        if(create) {
-            if(!found) {
+        if (create) {
+            if (!found) {
                 SharedChannel channel = create_channel(channel_alias, client, channel_type);
             }
         }
@@ -457,7 +370,7 @@ SharedDictionary Router::handle_command(SharedClient client, SharedDictionary co
 
         auto ret = generate_confirm_command(key);
         ret->set<string>("alias", channel_alias);
-        ret->set<int>("channel_id",channel_id);
+        ret->set<int>("channel_id", channel_id);
         return ret;
     }
     case ECHO_COMMAND_CREATE_CHANNEL_WITH_ALIAS: {
@@ -527,7 +440,7 @@ SharedDictionary Router::handle_command(SharedClient client, SharedDictionary co
 
     }
 
-    return generate_error_command(key,"Message unhandled");
+    return generate_error_command(key, "Message unhandled");
 
 }
 

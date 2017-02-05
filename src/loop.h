@@ -5,8 +5,8 @@
 
 #include <string>
 #include <map>
+#include <vector>
 #include <utility>
-#include <memory>
 #include <memory>
 
 #include "message.h"
@@ -21,7 +21,9 @@ public:
 
 	virtual int get_file_descriptor() = 0;
 
-	virtual bool handle() = 0;
+	virtual bool handle_input() = 0;
+
+	virtual bool handle_output() = 0;
 
 	virtual void disconnect() = 0;
 
@@ -29,7 +31,28 @@ public:
 
 typedef shared_ptr<IOBase> SharedIOBase;
 
-class IOLoop {
+/*
+class IOBufferedBase : class IOBase {
+public:
+	virtual ~IOBase() {};
+
+	virtual int get_file_descriptor() = 0;
+
+	virtual bool handle();
+
+	virtual void disconnect() = 0;
+
+private:
+
+	vector
+
+};
+*/
+
+class IOLoop;
+typedef shared_ptr<IOLoop> SharedIOLoop;
+
+class IOLoop : public enable_shared_from_this<IOLoop> {
 public:
 	IOLoop();
 	virtual ~IOLoop();
@@ -40,13 +63,22 @@ public:
 
 	virtual bool wait(long timeout = -1);
 
+	//static SharedIOLoop default_loop();
+
 private:
+
+	//static SharedIOLoop loop;
 
 	map<int, SharedIOBase> handlers;
 
 	int efd;
 
 };
+
+SharedIOLoop default_loop();
+
+bool wait(long timeout = -1);
+	
 
 }
 

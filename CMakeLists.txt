@@ -29,6 +29,8 @@ add_library(echo SHARED
     src/loop.cpp
     src/message.cpp
     src/client.cpp
+    src/server.cpp
+    src/routing.cpp    
     src/debug.cpp
 )
 
@@ -44,6 +46,8 @@ install(TARGETS echo EXPORT echolib_targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES
     src/loop.h
     src/client.h
+    src/server.h
+    src/routing.h    
     src/message.h
     src/datatypes.h
     src/helpers.h
@@ -54,7 +58,7 @@ install(FILES
 include(CMakePackageConfigHelpers)
 
 set(LIB_INSTALL_DIR ${CMAKE_INSTALL_LIBDIR})
-set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR}/echolib)
+set(INCLUDE_INSTALL_DIR ${CMAKE_INSTALL_INCLUDEDIR})
 
 configure_package_config_file(echolib-config.cmake.in
     ${PROJECT_BINARY_DIR}/echolib-config.cmake
@@ -81,10 +85,9 @@ install(
 if(BUILD_DAEMON)
     add_executable(echodaemon
         src/daemon.cpp
-        src/routing.cpp
-        src/message.cpp
-        src/debug.cpp
     )
+
+    target_link_libraries(echodaemon echo)
 
     install(TARGETS echodaemon DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

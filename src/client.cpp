@@ -106,27 +106,24 @@ static int connect_socket(const string& address) {
 
 }
 
-SharedClient connect(IOLoop& loop, const string& address) {
+SharedClient connect(const string& address, SharedIOLoop loop) {
 
-    return make_shared<Client>(loop, address);
+    SharedClient client = make_shared<Client>(address);
+
+    loop->add_handler(client);
+
+    return client;
 
 }
 
 Client::Client() : Client("") { }
 
-Client::Client(const string &address) : fd(connect_socket(address)), writer(fd), reader(fd), 
+Client::Client(const string &address) : fd(connect_socket(address)), writer(fd), reader(fd),
     next_request_key(0), subscriptions(), watches() {
 
-    __debug_enable();
     initialize_common();
 
     connected = true;
-
-}
-
-Client::Client(IOLoop& loop, const string& address) : Client(address) {
-
-    loop.add_handler(shared_ptr<Client>(this));
 
 }
 
@@ -150,7 +147,7 @@ void Client::initialize_common() {
                 last = next;
             } else {
                 token = s.substr(last, next - last);
-                last = next + 1; 
+                last = next + 1;
             }
 
             size_t split = token.find("=");
@@ -163,12 +160,12 @@ void Client::initialize_common() {
             DEBUGMSG("Mapping alias %s to %s\n", from.c_str(), to.c_str());
 
             mappings[from] = to;
-        } 
+        }
     }
 
 }
 
-bool Client::handle() {
+bool Client::handle_input() {
 
     while (true) {
         SharedMessage msg = reader.read_message();
@@ -185,16 +182,21 @@ bool Client::handle() {
 
     }
 
-    //Writing phase
-    if (!writer.write_messages()) {
+    return is_connected();
+
+}
+
+bool Client::handle_output() {
+
+    bool status = writer.write_messages();
+    if (!status) {
         if (writer.get_error()) {
             DEBUGMSG("Writer error: %d\n", writer.get_error());
             disconnect();
-            return is_connected();
         }
-    }
 
-    return is_connected();
+    }
+    return status;
 
 }
 

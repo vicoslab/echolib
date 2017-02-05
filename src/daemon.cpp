@@ -1,191 +1,39 @@
 /* -*- Mode: C++; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*- */
 
-#include <arpa/inet.h>
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <signal.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <netdb.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <sys/epoll.h>
-#include <errno.h>
 
 #include "debug.h"
+#include "loop.h"
 #include "routing.h"
 
 using namespace echolib;
-
-#define MAXEVENTS 640
-
-#define SOCKET_BUFFER_SIZE 1024 * 1024
+using namespace std;
 
 // https://stackoverflow.com/questions/8104904/identify-program-that-connects-to-a-unix-domain-socket
 
-typedef struct statistics {
-
-
-} statistics;
-
-static int make_socket_non_blocking(int sfd) {
-    int flags, s;
-
-    flags = fcntl(sfd, F_GETFL, 0);
-    if (flags == -1) {
-        perror("fcntl");
-        return -1;
-    }
-
-    flags |= O_NONBLOCK;
-    s = fcntl(sfd, F_SETFL, flags);
-    if (s == -1) {
-        perror("fcntl");
-        return -1;
-    }
-
-    return 0;
-}
-
-
-static bool configure_socket(int fd, int size) {
-    setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &size, sizeof(size));
-    setsockopt(fd, SOL_SOCKET, SO_SNDBUF, &size, sizeof(size));
-    //int set = 1;
-    //setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, (void *)&set, sizeof(int));
-    return true;
-}
-
-static int create_and_bind(const char *path) {
-    struct sockaddr_un hints;
-    int s, len;
-    if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-        perror("socket");
-        return -1;
-    }
-    hints.sun_family = AF_UNIX;  // local is declared before socket()
-    strcpy(hints.sun_path, path); // path and name for socket
-    unlink(hints.sun_path); // remove socket if already in use
-    len = strlen(hints.sun_path) + sizeof(hints.sun_family);
-
-    // associate the socket with the file descriptor s
-    if (bind(s, (struct sockaddr *) &hints, len) == -1) {
-        perror("bind");
-        return -2;
-    }
-
-    DEBUGMSG("Succesfully created socket FID:%d\n", s);
-
-    return s;
-
-}
-
-static int create_and_bind_interface(int port) {
-
-    struct sockaddr_in hints;
-    int s;
-    if ((s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-        perror("socket");
-        return -1;
-    }
-    // IPv4 for now
-    // TODO: IPv6 support
-    hints.sin_family = AF_INET;
-    // bind the created socket to all network interfaces
-    hints.sin_addr.s_addr = htonl(INADDR_ANY);
-    hints.sin_port = htons(port);
-
-    /* Mark as re-usable (accept more than one connection to same socket) */
-    int so_optval = 1;
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, (char *) &so_optval,
-                   sizeof(SO_REUSEADDR)) < 0) {
-        perror("re-usable");
-        return -3;
-    }
-
-
-    if (bind(s, (struct sockaddr *) &hints, sizeof(hints)) == -1) {
-        perror("bind");
-        return -2;
-    }
-    DEBUGMSG("Succesfully created socket FID:%d\n", s);
-
-    return s;
-
-}
-
 int main(int argc, char *argv[]) {
 
-    int sfd, s;
-    int efd;
-    struct epoll_event event;
-
-    //__debug_enable();
-
-    // Valgrind reports error otherwise: http://stackoverflow.com/questions/19364942/points-to-uninitialised-bytes-valgrind-errors
-    memset(&event, 0, sizeof(epoll_event));
-    struct epoll_event *events;
-    int timeout = -1;
-    Router router;
+    SharedIOLoop loop = make_shared<IOLoop>();
 
     string address;
-
-    if (argc > 1)
+    if (argc > 1) {
         address = string(argv[1]);
-
-    if (address.empty()) {
-        if (getenv("ECHOLIB_SOCKET") != NULL) {
-            address = string(getenv("ECHOLIB_SOCKET"));
-        } else {
-            address = "/tmp/echo.sock";
-        }
     }
 
-    size_t split = address.find(":");
+    shared_ptr<Router> router = make_shared<Router>(loop, address);
+    loop->add_handler(router);
 
-    if (split != string::npos) {
-        string host = address.substr(0, split);
-        int port = atoi(address.substr(split + 1).c_str());
-        printf("Binding TCP socket\n");
-        sfd=create_and_bind_interface(port);
-    } else {
-        printf("Binding Unix socket\n");
-        sfd = create_and_bind(address.c_str());
+    while (true) {
+
+        loop->wait(5000);
+
+        cout << " --------------------------- Daemon statistics --------------------------------- " <<  endl;
+
+        router->print_statistics();
+
     }
 
-    if (sfd == -1)
-        abort();
-
-    DEBUGMSG("Starting making socket nonblocking\n");
-    s = make_socket_non_blocking(sfd);
-    if (s == -1)
-        abort();
-
-    s = listen(sfd, SOMAXCONN);
-    if (s == -1) {
-        perror("listen");
-        abort();
-    }
-
-    efd = epoll_create1(0);
-    if (efd == -1) {
-        perror("epoll_create");
-        abort();
-    }
-
-    event.data.fd = sfd;
-    event.events = EPOLLIN | EPOLLET | EPOLLOUT;
-    s = epoll_ctl(efd, EPOLL_CTL_ADD, sfd, &event);
-    if (s == -1) {
-        perror("epoll_ctl");
-        abort();
-    }
-
-    /* Buffer where events are returned */
-    events = (epoll_event *) calloc(MAXEVENTS, sizeof event);
-
-    /* The event loop */
+/*
     while (1) {
         int n, i;
         n = epoll_wait(efd, events, MAXEVENTS, timeout);
@@ -214,8 +62,6 @@ int main(int argc, char *argv[]) {
                 continue;
             } else if (sfd == events[i].data.fd) {
 
-                /* We have a notification on the listening socket, which
-                   means one or more incoming connections. */
                 while (1) {
                     struct sockaddr in_addr;
                     socklen_t in_len;
@@ -226,16 +72,14 @@ int main(int argc, char *argv[]) {
                     if (infd == -1) {
                         if ((errno == EAGAIN) ||
                                 (errno == EWOULDBLOCK)) {
-                            /* We have processed all incoming
-                               connections. */
+
                             break;
                         } else {
                             perror("accept");
                             break;
                         }
                     }
-                    /* Make the incoming socket non-blocking and add it to the
-                       list of fds to monitor. */
+
                     s = make_socket_non_blocking(infd);
                     if (s == -1) {
                         perror("abort");
@@ -246,7 +90,6 @@ int main(int argc, char *argv[]) {
 
                     event.data.fd = infd;
                     event.events = EPOLLIN | EPOLLET;
-                    // Register new socket for events
                     s = epoll_ctl(efd, EPOLL_CTL_ADD, infd, &event);
                     if (s == -1) {
                         perror("epoll_ctl");
@@ -264,7 +107,7 @@ int main(int argc, char *argv[]) {
 
     free(events);
 
-    close(sfd);
+    close(sfd);*/
 
     return EXIT_SUCCESS;
 }

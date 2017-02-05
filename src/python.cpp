@@ -64,10 +64,10 @@ PYBIND11_PLUGIN(pyecho) {
 
     py::class_<Client, std::shared_ptr<Client> >(m, "Client")
     .def(py::init<string>())
-    .def(py::init<IOLoop&, string>())
     .def(py::init())
     .def("disconnect", &Client::disconnect, "Disconnect the client")
-    .def("handle", &Client::handle, "Handle input and output messages")
+    .def("handle_input", &Client::handle_input, "Handle input messages")
+    .def("handle_output", &Client::handle_output, "Handle output messages")
     .def("fd", &Client::get_file_descriptor, "Get access to low-level file descriptor")
     .def("isConnected", &Client::is_connected, "Check if the client is connected");
 

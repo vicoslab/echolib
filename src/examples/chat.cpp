@@ -42,10 +42,16 @@ template<> inline shared_ptr<pair<string, string> > Message::unpack<pair<string,
 
 int main(int argc, char** argv) {
 
-    IOLoop loop;
+    SharedIOLoop loop = make_shared<IOLoop>();
+
+    string address;
+    if (argc > 1) {
+        address = string(argv[1]);
+    }
 
     //Connect to local socket based daemon
-    SharedClient client = make_shared<echolib::Client>(loop, string(argv[1]));
+    SharedClient client = make_shared<echolib::Client>(address);
+    loop->add_handler(client);
 
     string name;
     cout << "Enter your name\n";
@@ -76,7 +82,7 @@ int main(int argc, char** argv) {
 
     });
 
-    while(loop.wait(10)) {
+    while(loop->wait(10)) {
         // We have to give the write thread some space
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }

@@ -4,6 +4,7 @@
 #define ECHO_ROUTING_HPP_
 
 #include "message.h"
+#include "server.h"
 #include <map>
 #include <vector>
 #include <set>
@@ -12,26 +13,23 @@ using namespace std;
 
 namespace echolib {
 
-class Client;
-typedef std::shared_ptr<Client> SharedClient;
-
 class Channel : public MessageHandler {
 
   public:
 
-    Channel(int identifier, SharedClient owner, const string& type = string());
+    Channel(int identifier, SharedClientConnection owner, const string& type = string());
     ~Channel();
 
-    bool publish(SharedClient client, SharedMessage message);
+    bool publish(SharedClientConnection client, SharedMessage message);
 
-    bool subscribe(SharedClient client);
-    bool unsubscribe(SharedClient client);
+    bool subscribe(SharedClientConnection client);
+    bool unsubscribe(SharedClientConnection client);
 
-    bool watch(SharedClient client);
-    bool unwatch(SharedClient client);
+    bool watch(SharedClientConnection client);
+    bool unwatch(SharedClientConnection client);
 
-    bool is_subscribed(SharedClient client);
-    bool is_watching(SharedClient client);
+    bool is_subscribed(SharedClientConnection client);
+    bool is_watching(SharedClientConnection client);
 
     string get_type() const;
     bool set_type(const string& type);
@@ -42,80 +40,44 @@ class Channel : public MessageHandler {
     int identifier;
     string type;
 
-    SharedClient owner;
-    set<SharedClient> subscribers;
-    set<SharedClient> watchers;
+    SharedClientConnection owner;
+    set<SharedClientConnection> subscribers;
+    set<SharedClientConnection> watchers;
 
 };
-
 
 typedef std::shared_ptr<Channel> SharedChannel;
 
-class Client {
+class Router : public Server, public MessageHandler {
+friend ClientConnection;
 
   public:
-
-    Client(int sfd);
-    ~Client();
-
-    SharedMessage read();
-
-    bool is_connected();
-
-    bool disconnect();
-
-    void send(const SharedMessage message);
-
-    bool write();
-
-    int get_process() const;
-
-    int get_user() const;
-
-    int get_group() const;
-
-    int get_identifier() const;
-
-  private:
-
-    int fd;
-
-    StreamReader reader;
-    StreamWriter writer;
-
-    bool connected;
-
-    int process_id;
-    int user_id;
-    int group_id;
-
-};
-
-
-class Router : public MessageHandler {
-
-  public:
-    Router();
+    Router(SharedIOLoop loop, const std::string& address = std::string());
     ~Router();
 
-    void add_client(int sfd);
-    void handle_client(int sfd);
-    bool disconnect_client(int sfd);
-    bool handle_write();
+    void print_statistics() const;
+
+    static bool comparator(const SharedClientConnection &lhs, const SharedClientConnection &rhs);
 
   private:
 
     int next_channel_id;
 
-    void handle_message(SharedClient client, SharedMessage message);
+    virtual void handle_message(SharedClientConnection client, SharedMessage message);
 
-    SharedChannel create_channel(const string& alias, SharedClient owner, const string& type = string());
+    virtual void handle_disconnect(SharedClientConnection client);
 
-    SharedDictionary handle_command(SharedClient client, SharedDictionary command);
+    virtual void handle_connect(SharedClientConnection client);
+
+    SharedChannel create_channel(const string& alias, SharedClientConnection owner, const string& type = string());
+
+    SharedDictionary handle_command(SharedClientConnection client, SharedDictionary command);
 
     map<string, int> aliases;
-    map<int, SharedClient> clients;
+    
     map<int, SharedChannel> channels;
+
+    set<SharedClientConnection, function<bool(SharedClientConnection, SharedClientConnection)>> clients;
 
     long received_messages_size;
 

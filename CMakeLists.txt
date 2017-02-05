@@ -11,6 +11,7 @@ option(BUILD_DAEMON "Build echolib daemon" ON)
 option(BUILD_PYTHON "Build python bindings" ON)
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_DEBUG "Enable debug output" OFF)
+option(BUILD_TESTS "Build tests" OFF)
 
 set(ECHO_PYTHON_VERSION "2" CACHE STRING "Python version to use for compiling python bindings")
 
@@ -124,3 +125,9 @@ if(BUILD_EXAMPLES)
 endif()
 
 
+# Examples
+if(BUILD_TESTS)
+    add_executable(deadend src/tests/deadend.cpp)
+    target_include_directories(deadend PRIVATE src)
+    target_link_libraries(deadend echo)
+endif()

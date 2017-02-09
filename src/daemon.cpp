@@ -5,6 +5,7 @@
 #include "debug.h"
 #include "loop.h"
 #include "routing.h"
+#include "debug.h"
 
 using namespace echolib;
 using namespace std;
@@ -27,9 +28,10 @@ int main(int argc, char *argv[]) {
 
         loop->wait(5000);
 
-        cout << " --------------------------- Daemon statistics --------------------------------- " <<  endl;
-
-        router->print_statistics();
+        DEBUGGING {
+            cout << " --------------------------- Daemon statistics --------------------------------- " <<  endl;
+            router->print_statistics();
+        }
 
     }
 

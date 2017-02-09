@@ -33,9 +33,9 @@ void IOLoop::add_handler(SharedIOBase base) {
 
 	int fd = base->get_file_descriptor();
 
-	if (handlers.find(fd) != handlers.end()) {
-		throw runtime_error("Listener for file descriptor already registered");
-	}
+	//if (handlers.find(fd) != handlers.end()) {
+	//	throw runtime_error("Listener for file descriptor already registered");
+	//}
 
     struct epoll_event event;
     event.data.fd = fd;
@@ -52,8 +52,11 @@ void IOLoop::remove_handler(SharedIOBase base) {
 
 	int fd = base->get_file_descriptor();
 
+    DEBUGMSG("Removing client handler FID=%d\n", fd);
+
 	if (handlers.find(fd) == handlers.end()) {
-		throw runtime_error("Listener for file descriptor not registered");
+		DEBUGMSG("Listener for file descriptor not registered\n");
+        return;
 	}
 
     if (epoll_ctl (efd, EPOLL_CTL_DEL, fd, NULL) == -1) {

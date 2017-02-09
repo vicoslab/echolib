@@ -131,3 +131,23 @@ class Dictionary(dict):
         return unicode(repr(self.__dict__))
 
 registerType(Dictionary, Dictionary.read, Dictionary.write)
+
+
+class DictionarySubscriber(Subscriber):
+
+    def __init__(self, client, alias, callback):
+        def _read(message):
+            reader = MessageReader(message)
+            return Dictionary.read(reader)
+
+        super(DictionarySubscriber, self).__init__(client, alias, "dictionary", lambda x: callback(_read(x)))
+
+class DictionaryPublisher(Publisher):
+
+    def __init__(self, client, alias):
+        super(DictionaryPublisher, self).__init__(client, alias, "dictionary")
+
+    def send(self, obj):
+        writer = MessageWriter()
+        Dictionary.write(writer, obj)
+        super(DictionaryPublisher, self).send(writer)

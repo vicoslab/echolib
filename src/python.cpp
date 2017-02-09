@@ -49,9 +49,39 @@ class PyWatcher : public Watcher {
     }
 };
 
+class PyIOBase : public IOBase {
+public:
+    using IOBase::IOBase;
+
+    virtual int get_file_descriptor() {
+        PYBIND11_OVERLOAD_PURE(int, IOBase, get_file_descriptor);
+    }
+
+    virtual bool handle_input() {
+        PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_input);
+    }
+
+    virtual bool handle_output() {
+        PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_output);
+
+    }
+
+    virtual void disconnect() {
+        PYBIND11_OVERLOAD_PURE(void, IOBase, disconnect);
+    }
+
+};
+
 PYBIND11_PLUGIN(pyecho) {
 
     py::module m("pyecho", "Echo IPC library Python bindings");
+
+    py::class_<IOBase, PyIOBase, std::shared_ptr<IOBase> >(m, "IOBase")
+    .def(py::init())
+    .def("handle_input", &Client::handle_input, "Handle input messages")
+    .def("handle_output", &Client::handle_output, "Handle output messages")
+    .def("fd", &Client::get_file_descriptor, "Get access to low-level file descriptor")
+    .def("disconnect", &Client::disconnect, "Disconnect the client");
 
     py::class_<IOLoop, std::shared_ptr<IOLoop> >(m, "IOLoop")
     .def(py::init())
@@ -62,7 +92,7 @@ PYBIND11_PLUGIN(pyecho) {
         return c.wait(timeout);
     }, "Wait for more messages");
 
-    py::class_<Client, std::shared_ptr<Client> >(m, "Client")
+    py::class_<Client, IOBase, std::shared_ptr<Client> >(m, "Client")
     .def(py::init<string>())
     .def(py::init())
     .def("disconnect", &Client::disconnect, "Disconnect the client")

@@ -15,7 +15,7 @@
 #include "server.h"
 
 #define SOCKET_BUFFER_SIZE 1024 * 1024
-#define MAX_SEND_MESSAGE_QUEUE -1
+#define MAX_SEND_MESSAGE_QUEUE 10000
 
 using namespace std;
 

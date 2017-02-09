@@ -27,7 +27,7 @@ const char* EndOfBufferException::what() const throw() {
     return "End of buffer";
 }
 
-MessageReader::~MessageReader() {
+MessageReader::~MessageReader() { 
 
 }
 
@@ -413,7 +413,7 @@ shared_ptr<Message> StreamReader::process_buffer() {
 }
 
 bool StreamWriter::comparator(const MessageContainer &lhs, const MessageContainer &rhs) {
-    return (lhs.priority < rhs.priority) || (lhs.priority == rhs.priority && lhs.time > rhs.time);
+    return (lhs.priority < rhs.priority) || (lhs.priority == rhs.priority && lhs.time < rhs.time);
 }
 
 StreamWriter::StreamWriter(int fd, int size) : fd(fd), incoming(&StreamWriter::comparator), time(0), size(size) {
@@ -443,7 +443,7 @@ bool StreamWriter::add_message(SharedMessage msg, int priority) {
 
         incoming.push(MessageContainer(msg, priority, time++));
 
-        if (size > 0 || get_queue_size() > size) {
+        if (size > 0 && get_queue_size() > size) {
            MessageContainer c = incoming.retract();
            total_data_dropped += c.message->get_length();
            return false;

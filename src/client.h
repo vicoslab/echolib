@@ -179,7 +179,7 @@ private:
 class ChunkedSubscriber : public Subscriber {
     friend Client;
 public:
-    ChunkedSubscriber(SharedClient client, const string &alias, const string &type = string());
+    ChunkedSubscriber(SharedClient client, const string &alias, const string &type = string(), int pending_buffer = 10);
 
     virtual ~ChunkedSubscriber();
 
@@ -206,6 +206,8 @@ private:
         vector<bool> chunk_present;
 
     };
+
+    int pending_buffer;
 
     map<long, shared_ptr<PendingBuffer> > pending;
 

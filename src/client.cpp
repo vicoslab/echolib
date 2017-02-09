@@ -458,8 +458,10 @@ void Subscriber::on_ready() {
 
 }
 
-ChunkedSubscriber::ChunkedSubscriber(SharedClient client, const string &alias, const string &type) :
-    Subscriber(client, alias, string("chunked ") + type, create_data_callback(bind(&ChunkedSubscriber::on_chunk, this, std::placeholders::_1))) {
+
+ChunkedSubscriber::ChunkedSubscriber(SharedClient client, const string &alias, const string &type, int pending_buffer) :
+    Subscriber(client, alias, string("chunked ") + type, create_data_callback(bind(&ChunkedSubscriber::on_chunk, this, std::placeholders::_1))),
+    pending_buffer(pending_buffer) {
 
 }
 
@@ -483,6 +485,10 @@ void ChunkedSubscriber::on_chunk(SharedMessage chunk) {
     } else {
 
         if (sequence != 0) return;
+
+        if ((int)pending.size() > pending_buffer) {
+            pending.erase(std::prev(pending.end()));
+        }
 
         long length = reader.read_long();
         int chunk_size = reader.read_integer();

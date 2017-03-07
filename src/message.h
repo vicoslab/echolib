@@ -634,38 +634,6 @@ inline void write(MessageWriter& writer, const Dictionary &data) {
 
 }
 
-
-//template <> inline string get_type_identifier<Dictionary>() { return string("dictionary"); }
-
-template<>
-inline shared_ptr<Dictionary> Message::unpack(SharedMessage message) {
-
-    MessageReader reader(message);
-
-    shared_ptr<echolib::Dictionary> dictionary(new echolib::Dictionary);
-
-    read(reader, *dictionary);
-
-    return dictionary;
-}
-
-template<>
-inline shared_ptr<Message> Message::pack(const Dictionary &data) {
-    std::map<std::string, std::string>::const_iterator iter;
-
-    int length = 0;
-
-    for (iter = data.arguments.begin(); iter != data.arguments.end(); ++iter) {
-        length += sizeof(int) * 4 + sizeof(char) * (iter->first.size() + iter->second.size());
-    }
-
-    MessageWriter writer(length);
-
-    write(writer, data);
-
-    return make_shared<BufferedMessage>(writer);
-}
-
 }
 
 #endif

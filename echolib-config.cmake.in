@@ -6,3 +6,4 @@ set_and_check(echolib_LIBRARY_DIRS "@PACKAGE_LIB_INSTALL_DIR@")
 include("${CMAKE_CURRENT_LIST_DIR}/echolib-targets.cmake")
 
 set(echolib_LIBRARIES echo)
+set(echolib_FOUND TRUE)

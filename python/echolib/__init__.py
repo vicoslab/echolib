@@ -1,4 +1,4 @@
- 
+
 from echolib.pyecho import *
 
 double = type('double', (), {})
@@ -6,26 +6,46 @@ char = type('char', (), {})
 
 _type_registry = {}
 
-def registerType(cls, read, write):
+def registerType(cls, read, write, convert=None):
     if cls.__name__ in _type_registry:
         raise Exception("Type %s already registered" % cls.__name__)
-    _type_registry[cls.__name__] = {"read" : read, "write" : write}
+    _type_registry[cls.__name__] = {"read" : read, "write" : write, "convert" : convert}
 
 def readType(cls, reader):
     return _type_registry[cls.__name__]["read"](reader)
 
 def writeType(cls, writer, obj):
     if not isinstance(obj, cls):
-        raise Exception("Object type is not correct %s != %s" % (type(obj).__name__, cls.__name__))
+        if _type_registry[cls.__name__]["convert"] is None:
+            raise Exception("Object type is not correct %s != %s" % (type(obj).__name__, cls.__name__))
+        try:
+            obj = _type_registry[cls.__name__]["convert"](obj)
+        except:
+            raise Exception("Unable to convert %s to %s" % (type(obj).__name__, cls.__name__))
     _type_registry[cls.__name__]["write"](writer, obj)
 
-registerType(int, lambda x: x.readInt(), lambda x, o: x.writeInt(o))
-registerType(long, lambda x: x.readLong(), lambda x, o: x.writeLong(o))
-registerType(float, lambda x: x.readFloat(), lambda x, o: x.writeFloat(o))
-registerType(str, lambda x: x.readString(), lambda x, o: x.writeString(o))
-registerType(double, lambda x: x.readDouble(), lambda x, o: x.writeDouble(o))
+def convertInt(obj):
+    return int(obj)
+
+def convertLong(obj):
+    return long(obj)
+
+def convertFloat(obj):
+    return float(obj)
+
+def convertStr(obj):
+    return str(obj)
+
+def convertBool(obj):
+    return bool(obj)
+
+registerType(int, lambda x: x.readInt(), lambda x, o: x.writeInt(o), convertInt)
+registerType(long, lambda x: x.readLong(), lambda x, o: x.writeLong(o), convertLong)
+registerType(float, lambda x: x.readFloat(), lambda x, o: x.writeFloat(o), convertFloat)
+registerType(str, lambda x: x.readString(), lambda x, o: x.writeString(o), convertStr)
+registerType(double, lambda x: x.readDouble(), lambda x, o: x.writeDouble(o), convertFloat)
 registerType(char, lambda x: x.readChar(), lambda x, o: x.writeChar(o))
-registerType(bool, lambda x: x.readBool(), lambda x, o: x.writeBool(o))
+registerType(bool, lambda x: x.readBool(), lambda x, o: x.writeBool(o), convertBool)
 
 def readList(cls, reader):
     objects = []
@@ -73,19 +93,19 @@ class Dictionary(dict):
         self.write(writer)
         return writer
 
-    def __setitem__(self, key, item): 
+    def __setitem__(self, key, item):
         self.__dict__[key] = item
 
-    def __getitem__(self, key): 
+    def __getitem__(self, key):
         return self.__dict__[key]
 
-    def __repr__(self): 
+    def __repr__(self):
         return repr(self.__dict__)
 
-    def __len__(self): 
+    def __len__(self):
         return len(self.__dict__)
 
-    def __delitem__(self, key): 
+    def __delitem__(self, key):
         del self.__dict__[key]
 
     def get(self, key, default = None):

@@ -1,4 +1,4 @@
-# -*- Mode: Python; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*- 
+# -*- Mode: Python; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
 
 import sys
 import time
@@ -25,9 +25,10 @@ def main():
 
     loop = echolib.IOLoop()
 
-    client = echolib.Client(loop, sys.argv[1])
+    client = echolib.Client()
+    loop.add_handler(client)
 
-    name = raw_input("Please enter your name:")   
+    name = raw_input("Please enter your name:")
 
     sub = echolib.Subscriber(client, "chat", "string pair", message)
 
@@ -44,4 +45,4 @@ def main():
     sys.exit(1)
 
 if __name__ == '__main__':
-    main() 
+    main()

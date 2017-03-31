@@ -16,6 +16,7 @@
 #include "debug.h"
 #include "message.h"
 #include "client.h"
+#include "datatypes.h"
 
 #define MAXEVENTS 8
 

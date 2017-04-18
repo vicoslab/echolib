@@ -16,27 +16,6 @@
 
 using namespace std;
 
-namespace std {
-
-template<typename T, class Compare>
-class emptiable_priority_queue : public priority_queue<T, std::vector<T>, Compare>
-{
-public:
-
-    emptiable_priority_queue(const Compare& comparator) : priority_queue<T, std::vector<T>, Compare>(comparator) {}
-
-    const T retract() {
-        if (this->c.empty()) throw std::runtime_error("Empty queue");
-        auto it = this->c.end()-1;
-        auto obj = *it;
-        this->c.erase(it);
-        std::make_heap(this->c.begin(), this->c.end(), this->comp);
-        return obj;
-    }
-};
-
-}
-
 #define ECHO_CONTROL_CHANNEL 0
 
 // TODO: change this to strings
@@ -53,6 +32,11 @@ public:
 #define ECHO_COMMAND_SUBSCRIBE_ALIAS 6
 #define ECHO_COMMAND_CREATE_CHANNEL_WITH_ALIAS 7
 #define ECHO_COMMAND_CREATE_CHANNEL 8
+
+//TODO: move buffer size from a define to a variable that the user can change, since it has an effect on performance
+#define BUFFER_SIZE 1024 * 100
+#define MESSAGE_MAX_SIZE 1024 * 50
+#define MESSAGE_MAX_QUEUE 5000
 
 namespace echolib {
 
@@ -459,7 +443,7 @@ private:
 class StreamWriter {
 public:
 
-    StreamWriter(int fd, int size = -1);
+    StreamWriter(int fd, std::size_t size = MESSAGE_MAX_QUEUE);
     ~StreamWriter();
 
     bool add_message(const SharedMessage msg, int priority);
@@ -477,6 +461,8 @@ public:
     unsigned long get_dropped_data() const;
 
 protected:
+
+    class BoundedQueue;
 
     class MessageContainer {
     public:
@@ -507,7 +493,7 @@ private:
 
     int error;
 
-    emptiable_priority_queue<MessageContainer, function<bool(MessageContainer, MessageContainer)> > incoming;
+    BoundedQueue *outgoing;
 
     MessageContainer pending;
 
@@ -524,7 +510,6 @@ private:
     unsigned long total_data_written;
     unsigned long total_data_dropped;
 
-    int size;
 };
 
 template<class T>

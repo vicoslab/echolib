@@ -12,15 +12,25 @@
 
 #include "debug.h"
 #include "message.h"
+#include "algorithms.h"
 
 using namespace std;
 
 namespace echolib {
 
 #define MESSAGE_DELIMITER ((char) 0x0F)
-//TODO: move buffer size from a define to a variable that the user can change, since it has an effect on performance
-#define BUFFER_SIZE 1024 * 100
-#define MESSAGE_MAX_SIZE 1024 * 50
+
+class StreamWriter::BoundedQueue : public bounded_priority_queue<MessageContainer, vector<MessageContainer>,
+         function<bool(MessageContainer, MessageContainer)> > {
+public:
+    BoundedQueue(std::size_t size, const function<bool(MessageContainer, MessageContainer)>& comp) : bounded_priority_queue(size, comp) {}
+    ~BoundedQueue() {};
+
+    using bounded_priority_queue::pop_top;
+    using bounded_priority_queue::push;
+    using bounded_priority_queue::size;
+    using bounded_priority_queue::max_size;
+};
 
 
 const char* EndOfBufferException::what() const throw() {
@@ -416,7 +426,7 @@ bool StreamWriter::comparator(const MessageContainer &lhs, const MessageContaine
     return (lhs.priority < rhs.priority) || (lhs.priority == rhs.priority && lhs.time < rhs.time);
 }
 
-StreamWriter::StreamWriter(int fd, int size) : fd(fd), incoming(&StreamWriter::comparator), time(0), size(size) {
+StreamWriter::StreamWriter(int fd, size_t size) : fd(fd), outgoing(new BoundedQueue(size, &StreamWriter::comparator)), time(0) {
 
     buffer = (uchar *) malloc(BUFFER_SIZE);
     message_position = 0;
@@ -427,6 +437,8 @@ StreamWriter::StreamWriter(int fd, int size) : fd(fd), incoming(&StreamWriter::c
 
 StreamWriter::~StreamWriter() {
 
+    delete outgoing;
+
     if (buffer)
         free(buffer);
 
@@ -434,20 +446,25 @@ StreamWriter::~StreamWriter() {
 
 bool StreamWriter::add_message(SharedMessage msg, int priority) {
 
-    if (incoming.empty() && !pending.message) {
+    if (outgoing->empty() && !pending.message) {
         pending = MessageContainer(msg, priority, 0);
         reset();
         write_messages();
         return true;
     } else {
 
-        incoming.push(MessageContainer(msg, priority, time++));
+        MessageContainer a(msg, priority, time++);
 
-        if (size > 0 && get_queue_size() > size) {
-           MessageContainer c = incoming.retract();
-           total_data_dropped += c.message->get_length();
-           return false;
-        }
+        if (!outgoing->push(a)) {
+
+            MessageContainer rm = outgoing->push_over(a);
+            total_data_dropped += rm.message->get_length();
+
+            return false;
+        } 
+            
+    
+
         return true;
     }
 
@@ -455,22 +472,22 @@ bool StreamWriter::add_message(SharedMessage msg, int priority) {
 
 bool StreamWriter::write_messages() {
     //started writing messages
-    if (incoming.empty() && !pending.message) {
+    if (outgoing->empty() && !pending.message) {
         return true;
     }
 
     if (pending.is_empty()) {
-        pending = incoming.top();
-        incoming.pop();
+        pending = outgoing->top();
+        outgoing->pop_top();
         reset();
     }
 
     while (!pending.is_empty()) {
         if (process_message()) {
 
-            if (!incoming.empty()) {
-                pending = incoming.top();
-                incoming.pop();
+            if (!outgoing->empty()) {
+                pending = outgoing->top();
+                outgoing->pop_top();
                 reset();
             } else {
                 pending.reset();
@@ -572,11 +589,11 @@ bool StreamWriter::process_message() {
 }
 
 int StreamWriter::get_queue_size() const {
-    return incoming.size();
+    return outgoing->size();
 }
 
 int StreamWriter::get_queue_limit() const {
-    return size;
+    return outgoing->max_size();
 }
 
 void MessageHandler::set_channel(SharedMessage message, int channel_id) {

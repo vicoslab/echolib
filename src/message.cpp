@@ -110,9 +110,11 @@ std::string MessageReader::read_string() {
     ssize_t len = (ssize_t) read_integer();
 
     std::string result;
-    result.resize(len);
-
-    copy_data((uchar*) &result[0], (ssize_t)sizeof(char) * len);
+    
+    if (len) { 
+        result.resize(len);
+        copy_data((uchar*) &result[0], (ssize_t)sizeof(char) * len);
+    }
 
     return result;
 }
@@ -242,13 +244,22 @@ int MessageWriter::write_string(const std::string& value) {
     write_integer(value.size());
 
     return write_buffer((const uchar*) value.c_str(), value.size()) + sizeof(int);
-
+    
 }
 
 ssize_t MessageWriter::get_length() {
 
     return data_position;
 
+}
+
+SharedMessage MessageWriter::clone_data() {
+
+    shared_ptr<BufferedMessage> msg = make_shared<BufferedMessage>(get_length());
+
+    memcpy(msg->get_buffer(), data, get_length());
+
+    return msg;
 }
 
 StreamReader::StreamReader(int fd) : fd(fd) {

@@ -134,13 +134,15 @@ PYBIND11_PLUGIN(pyecho) {
         return p.send_message(message);
     }, "Send a writer");
 
-    py::class_<Message, std::shared_ptr<Message> >(m, "Message")
-    .def("getChannel", &BufferedMessage::get_channel, "Get channel");
+    py::class_<MemoryBuffer, std::shared_ptr<MemoryBuffer> >(m, "MemoryBuffer");
 
-    py::class_<BufferedMessage, Message, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
+    py::class_<Message, std::shared_ptr<Message> >(m, "Message")
+    .def("getChannel", &Message::get_channel, "Get channel");
+
+    py::class_<BufferedMessage, Message, MemoryBuffer, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
     .def(py::init<uchar*, int, bool>())
-    .def(py::init<MessageWriter>())
-    .def("getChannel", &BufferedMessage::get_channel, "Get channel");
+    .def("getChannel", &BufferedMessage::get_channel, "Get channel")
+    .def("size", &MemoryBuffer::get_length, "Get message length");
 
     py::class_<MessageReader>(m, "MessageReader")
     .def(py::init<SharedMessage>())
@@ -160,7 +162,8 @@ PYBIND11_PLUGIN(pyecho) {
     .def("writeChar", &MessageWriter::write_char, "Write a char")
     .def("writeFloat", &MessageWriter::write_float, "Write a float")
     .def("writeDouble", &MessageWriter::write_double, "Write a double")
-    .def("writeString", &MessageWriter::write_string, "Write a string");
+    .def("writeString", &MessageWriter::write_string, "Write a string")
+    .def("cloneData", &MessageWriter::clone_data, "Clone current data to message");
 
     return m.ptr();
 

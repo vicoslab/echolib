@@ -320,6 +320,8 @@ public:
 
     int write_buffer(MessageReader& reader, ssize_t len);
 
+    SharedMessage clone_data();
+
     ssize_t get_length();
 
 private:

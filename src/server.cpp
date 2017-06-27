@@ -78,7 +78,7 @@ bool ClientConnection::is_connected() {
 
 void ClientConnection::disconnect() {
 
-	server->handle_disconnect(shared_from_this());
+	server->handle_disconnect(std::dynamic_pointer_cast<ClientConnection>(shared_from_this()));
 
 	if (!close(fd)) {
 		DEBUGMSG("Disconnecting client FID=%d\n", fd);
@@ -131,7 +131,7 @@ bool ClientConnection::handle_input() {
 		SharedMessage msg = read();
 
 		if (msg) {
-			server->handle_message(shared_from_this(), msg);
+			server->handle_message(std::dynamic_pointer_cast<ClientConnection>(shared_from_this()), msg);
 		} else {
 			if (!is_connected())
 				return false;
@@ -328,7 +328,8 @@ bool Server::handle_input() {
 		configure_socket(infd, SOCKET_BUFFER_SIZE);
 
 		DEBUGMSG("Connecting client FID=%d\n", infd);
-		SharedClientConnection client = make_shared<ClientConnection>(infd, shared_from_this());
+		SharedClientConnection client = make_shared<ClientConnection>(infd,
+			std::dynamic_pointer_cast<Server>(shared_from_this()));
 		loop->add_handler(client);
 		handle_connect(client);
 

@@ -28,7 +28,7 @@ typedef std::shared_ptr<ClientConnection> SharedClientConnection;
 class Server;
 typedef std::shared_ptr<Server> SharedServer;
 
-class ClientConnection : public IOBase, public std::enable_shared_from_this<ClientConnection> {
+class ClientConnection : public IOBase {
 friend Server;
   public:
 
@@ -78,7 +78,7 @@ friend Server;
 
 };
 
-class Server : public IOBase, public std::enable_shared_from_this<Server> {
+class Server : public IOBase {
 friend ClientConnection;
 public:
 	Server(SharedIOLoop loop, const std::string& address = std::string());

@@ -20,8 +20,8 @@ def writeType(cls, writer, obj):
             raise Exception("Object type is not correct %s != %s" % (type(obj).__name__, cls.__name__))
         try:
             obj = _type_registry[cls.__name__]["convert"](obj)
-        except:
-            raise Exception("Unable to convert %s to %s" % (type(obj).__name__, cls.__name__))
+        except Exception, e:
+            raise Exception("Unable to convert %s to %s: %s" % (type(obj).__name__, cls.__name__, e))
     _type_registry[cls.__name__]["write"](writer, obj)
 
 def convertInt(obj):

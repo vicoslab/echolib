@@ -83,7 +83,7 @@ template<class F> WatchCallback create_watch_callback(F f) {
     return WatchCallback(new std::function<void(SharedDictionary)>(f));
 }
 
-class Client : public IOBase, public MessageHandler, public std::enable_shared_from_this<Client> {
+class Client : public IOBase, public MessageHandler {
     friend Subscriber;
     friend Publisher;
     friend Watcher;

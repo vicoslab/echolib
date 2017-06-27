@@ -54,7 +54,7 @@ public:
     using IOBase::IOBase;
 
     virtual int get_file_descriptor() {
-        PYBIND11_OVERLOAD_PURE(int, IOBase, get_file_descriptor);
+        PYBIND11_OVERLOAD_PURE(int, IOBase, fd);
     }
 
     virtual bool handle_input() {
@@ -78,10 +78,10 @@ PYBIND11_PLUGIN(pyecho) {
 
     py::class_<IOBase, PyIOBase, std::shared_ptr<IOBase> >(m, "IOBase")
     .def(py::init())
-    .def("handle_input", &Client::handle_input, "Handle input messages")
-    .def("handle_output", &Client::handle_output, "Handle output messages")
-    .def("fd", &Client::get_file_descriptor, "Get access to low-level file descriptor")
-    .def("disconnect", &Client::disconnect, "Disconnect the client");
+    .def("handle_input", &IOBase::handle_input, "Handle input messages")
+    .def("handle_output", &IOBase::handle_output, "Handle output messages")
+    .def("fd", &IOBase::get_file_descriptor, "Get access to low-level file descriptor")
+    .def("disconnect", &IOBase::disconnect, "Disconnect the client");
 
     py::class_<IOLoop, std::shared_ptr<IOLoop> >(m, "IOLoop")
     .def(py::init())

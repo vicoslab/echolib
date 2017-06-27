@@ -15,7 +15,7 @@ using namespace std;
 
 namespace echolib {
 
-class IOBase {
+class IOBase : public std::enable_shared_from_this<IOBase> {
 public:
 	virtual ~IOBase() {};
 

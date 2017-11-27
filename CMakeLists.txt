@@ -95,7 +95,7 @@ endif()
 
 # Python bindings
 if(BUILD_PYTHON)
-    find_path(PYBIND11_INCLUDE_DIR pybind11.h HINTS /usr/include PATH_SUFFIXES pybind11 DOC "PyBind11 include directory")
+    find_path(PYBIND11_INCLUDE_DIR pybind11/pybind11.h HINTS /usr/include DOC "PyBind11 include directory")
     find_package(PythonInterp ${ECHOCV_PYTHON_VERSION} REQUIRED)
     find_package(PythonLibs ${ECHOCV_PYTHON_VERSION} REQUIRED)
 

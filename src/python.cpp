@@ -5,7 +5,7 @@
 #include <pybind11/functional.h>
 #include <vector>
 
-PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>)
+//PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
 
 #include "client.h"
 
@@ -54,27 +54,29 @@ public:
     using IOBase::IOBase;
 
     virtual int get_file_descriptor() {
-        PYBIND11_OVERLOAD_PURE(int, IOBase, fd);
+        PYBIND11_OVERLOAD_PURE(int, IOBase, fd, );
     }
 
     virtual bool handle_input() {
-        PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_input);
+        PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_input, );
     }
 
     virtual bool handle_output() {
-        PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_output);
+        PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_output, );
 
     }
 
     virtual void disconnect() {
-        PYBIND11_OVERLOAD_PURE(void, IOBase, disconnect);
+        PYBIND11_OVERLOAD_PURE(void, IOBase, disconnect, );
     }
 
 };
 
-PYBIND11_PLUGIN(pyecho) {
+PYBIND11_MODULE(pyecho, m) {
 
-    py::module m("pyecho", "Echo IPC library Python bindings");
+    //py::module m("pyecho", "Echo IPC library Python bindings");
+    m.doc() = "Echo IPC library Python bindings";
+
 
     py::class_<IOBase, PyIOBase, std::shared_ptr<IOBase> >(m, "IOBase")
     .def(py::init())
@@ -134,15 +136,15 @@ PYBIND11_PLUGIN(pyecho) {
         return p.send_message(message);
     }, "Send a writer");
 
-    py::class_<MemoryBuffer, std::shared_ptr<MemoryBuffer> >(m, "MemoryBuffer");
+    py::class_<MemoryBuffer, std::shared_ptr<MemoryBuffer> >(m, "MemoryBuffer")
+    .def("size", &MemoryBuffer::get_length, "Get message length");
 
     py::class_<Message, std::shared_ptr<Message> >(m, "Message")
     .def("getChannel", &Message::get_channel, "Get channel");
 
     py::class_<BufferedMessage, Message, MemoryBuffer, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
     .def(py::init<uchar*, int, bool>())
-    .def("getChannel", &BufferedMessage::get_channel, "Get channel")
-    .def("size", &MemoryBuffer::get_length, "Get message length");
+    .def("getChannel", &BufferedMessage::get_channel, "Get channel");
 
     py::class_<MessageReader>(m, "MessageReader")
     .def(py::init<SharedMessage>())
@@ -164,7 +166,5 @@ PYBIND11_PLUGIN(pyecho) {
     .def("writeDouble", &MessageWriter::write_double, "Write a double")
     .def("writeString", &MessageWriter::write_string, "Write a string")
     .def("cloneData", &MessageWriter::clone_data, "Clone current data to message");
-
-    return m.ptr();
 
 }

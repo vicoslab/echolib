@@ -63,11 +63,7 @@ public:
 
 	virtual bool wait(long timeout = -1);
 
-	//static SharedIOLoop default_loop();
-
 private:
-
-	//static SharedIOLoop loop;
 
 	map<int, SharedIOBase> handlers;
 

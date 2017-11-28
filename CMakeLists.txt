@@ -130,4 +130,8 @@ if(BUILD_TESTS)
     add_executable(deadend src/tests/deadend.cpp)
     target_include_directories(deadend PRIVATE src)
     target_link_libraries(deadend echo)
+
+    add_executable(dynamic_client src/tests/dynamic_client.cpp)
+    target_include_directories(dynamic_client PRIVATE src)
+    target_link_libraries(dynamic_client echo)
 endif()

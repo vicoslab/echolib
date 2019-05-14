@@ -2,11 +2,11 @@
 
 import sys
 import time
-import echolib
+import pyecho
 import thread
 
 def message(message):
-    reader = echolib.MessageReader(message)
+    reader = pyecho.MessageReader(message)
     name = reader.readString()
     message = reader.readString()
     print name + ": " + message
@@ -14,7 +14,7 @@ def message(message):
 def write(client,pub,name):
     while client.isConnected():
         message = raw_input()
-        writer = echolib.MessageWriter()
+        writer = pyecho.MessageWriter()
         writer.writeString(name)
         writer.writeString(message)
         pub.send(writer)
@@ -23,16 +23,16 @@ def main():
     if len(sys.argv) < 2:
         raise Exception('Missing socket')
 
-    loop = echolib.IOLoop()
+    loop = pyecho.IOLoop()
 
-    client = echolib.Client()
+    client = pyecho.Client()
     loop.add_handler(client)
 
     name = raw_input("Please enter your name:")
 
-    sub = echolib.Subscriber(client, "chat", "string pair", message)
+    sub = pyecho.Subscriber(client, "chat", "string pair", message)
 
-    pub = echolib.Publisher(client, "chat", "string pair")
+    pub = pyecho.Publisher(client, "chat", "string pair")
 
     thread.start_new_thread(write,(client,pub,name,))
     try:

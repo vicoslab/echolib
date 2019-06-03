@@ -3,8 +3,8 @@
 #ifndef ECHO_ROUTING_HPP_
 #define ECHO_ROUTING_HPP_
 
-#include "message.h"
-#include "server.h"
+#include <echolib/message.h>
+#include <echolib/server.h>
 #include <map>
 #include <vector>
 #include <set>
@@ -48,6 +48,8 @@ class Channel : public MessageHandler {
 
 typedef std::shared_ptr<Channel> SharedChannel;
 
+typedef set<SharedClientConnection, function<bool(SharedClientConnection, SharedClientConnection)>> ClientSet;
+
 class Router : public Server, public MessageHandler {
 friend ClientConnection;
 
@@ -73,11 +75,13 @@ friend ClientConnection;
 
     SharedDictionary handle_command(SharedClientConnection client, SharedDictionary command);
 
+    SharedClientConnection find(int fid);
+
     map<string, int> aliases;
     
     map<int, SharedChannel> channels;
 
-    set<SharedClientConnection, function<bool(SharedClientConnection, SharedClientConnection)>> clients;
+    ClientSet clients;
 
     long received_messages_size;
 

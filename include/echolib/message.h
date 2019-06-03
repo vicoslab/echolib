@@ -32,6 +32,8 @@ using namespace std;
 #define ECHO_COMMAND_SUBSCRIBE_ALIAS 6
 #define ECHO_COMMAND_CREATE_CHANNEL_WITH_ALIAS 7
 #define ECHO_COMMAND_CREATE_CHANNEL 8
+#define ECHO_COMMAND_SET_NAME 9
+#define ECHO_COMMAND_GET_NAME 10
 
 //TODO: move buffer size from a define to a variable that the user can change, since it has an effect on performance
 #define BUFFER_SIZE 1024 * 100
@@ -167,7 +169,18 @@ private:
 class MultiBufferMessage : public Message {
 public:
 
-    MultiBufferMessage(const vector<SharedBuffer> &buffers);
+    template <class T> MultiBufferMessage(const T &buffers): MultiBufferMessage(buffers.begin(), buffers.end()) {}
+
+    template <class I> MultiBufferMessage(I begin, I end) : Message(), length(0) {
+
+        for (I it = begin; it != end; it++) {
+            if ((*it)->get_length() < 1) continue;
+            this->buffers.push_back(*it);
+            this->offsets.push_back(length);
+            length += (*it)->get_length();
+        }
+
+    }
 
     virtual ~MultiBufferMessage();
 
@@ -182,6 +195,25 @@ private:
     ssize_t length;
 
 };
+
+class OffsetBufferMessage : public Message {
+public:
+
+    OffsetBufferMessage(const SharedBuffer buffer, ssize_t offset = 0);
+
+    virtual ~OffsetBufferMessage();
+
+    virtual ssize_t get_length() const;
+
+    virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
+
+private:
+
+    SharedBuffer buffer;
+    ssize_t offset;
+    
+};
+
 
 class EndOfBufferException: public std::exception {
     virtual const char* what() const throw();
@@ -289,7 +321,7 @@ public:
     /**
      *
      */
-    ~MessageWriter();
+    virtual ~MessageWriter();
 
     MessageWriter(ssize_t length = 0);
 
@@ -316,21 +348,33 @@ public:
 
     int write_string(const string& value);
 
-    int write_buffer(const uchar* buffer, ssize_t len);
+    virtual int write_buffer(const uchar* buffer, ssize_t len);
 
-    int write_buffer(MessageReader& reader, ssize_t len);
+    virtual int write_buffer(MessageReader& reader, ssize_t len);
 
     SharedMessage clone_data();
 
     ssize_t get_length();
 
-private:
-
+protected:
 
     bool data_owned;
     uchar *data;
     ssize_t data_length;
     ssize_t data_position;
+
+};
+
+class DummyWriter: public MessageWriter {
+public:
+
+    DummyWriter();
+
+    virtual ~DummyWriter();
+
+    virtual int write_buffer(const uchar* buffer, ssize_t len);
+
+    virtual int write_buffer(MessageReader& reader, ssize_t len);
 
 };
 
@@ -357,6 +401,15 @@ template<typename T> void write(MessageWriter& writer, const vector<T>& src) {
     for (size_t i = 0; i < src.size(); i++) {
         write(writer, src[i]);
     }
+}
+
+template<typename T> ssize_t message_length(const T data) {
+    
+    DummyWriter writer;
+    write(writer, data);
+
+    return writer.get_length();
+
 }
 
 typedef std::map<std::string, std::string>::const_iterator DictionaryIterator;
@@ -442,13 +495,18 @@ private:
 
 };
 
+#define MESSAGE_CALLBACK_SENT 0
+#define MESSAGE_CALLBACK_DROPPED 1
+
+typedef function<void(const SharedMessage, int state)> MessageCallback;
+
 class StreamWriter {
 public:
 
     StreamWriter(int fd, std::size_t size = MESSAGE_MAX_QUEUE);
     ~StreamWriter();
 
-    bool add_message(const SharedMessage msg, int priority);
+    bool add_message(const SharedMessage msg, int priority, MessageCallback callback = NULL);
 
     bool write_messages();
 
@@ -469,10 +527,13 @@ protected:
     class MessageContainer {
     public:
         MessageContainer() : priority(0), time(0) {}
-        MessageContainer(SharedMessage message, int priority, long time) : message(message), priority(priority), time(time) {}
+        MessageContainer(SharedMessage message, int priority, long time, MessageCallback callback = NULL) :
+        message(message), priority(priority), time(time), callback(callback) {}
+
         SharedMessage message;
         int priority;
         long time;
+        MessageCallback callback;
 
         bool is_empty() const {
             return !message;
@@ -600,6 +661,7 @@ template<>
 inline void read(MessageReader& reader, Dictionary& dictionary) {
 
     int n = reader.read_integer();
+
     for (int i = 0; i < n; i++) {
         const std::string key = reader.read_string();
         const std::string value = reader.read_string();

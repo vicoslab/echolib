@@ -3,9 +3,8 @@
 #include <stdlib.h>
 
 #include "debug.h"
-#include "loop.h"
-#include "routing.h"
-#include "debug.h"
+#include <echolib/loop.h>
+#include <echolib/routing.h>
 
 using namespace echolib;
 using namespace std;

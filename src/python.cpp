@@ -1,14 +1,14 @@
 /* -*- Mode: C++; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*- */
 
+#include <vector>
+
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
-#include <vector>
+#include <pybind11/chrono.h>
 
-//PYBIND11_DECLARE_HOLDER_TYPE(T, std::shared_ptr<T>, false)
-
-#include "client.h"
-
+#include <echolib/datatypes.h>
+#include <echolib/client.h>
 
 using namespace echolib;
 namespace py = pybind11;
@@ -72,6 +72,22 @@ public:
 
 };
 
+void write_timestamp(MessageWriter& writer, const std::chrono::system_clock::time_point& src) {
+
+    write(writer, src);
+
+}
+
+std::chrono::system_clock::time_point read_timestamp(MessageReader& reader) {
+
+    std::chrono::system_clock::time_point res;
+
+    read(reader, res);
+
+    return res;
+
+}
+
 PYBIND11_MODULE(pyecho, m) {
 
     //py::module m("pyecho", "Echo IPC library Python bindings");
@@ -95,8 +111,7 @@ PYBIND11_MODULE(pyecho, m) {
     }, "Wait for more messages");
 
     py::class_<Client, IOBase, std::shared_ptr<Client> >(m, "Client")
-    .def(py::init<string>())
-    .def(py::init())
+    .def(py::init<const string&, const string&>(), py::arg("name") = string(""), py::arg("address") = string(""))
     .def("disconnect", &Client::disconnect, "Disconnect the client")
     .def("handle_input", &Client::handle_input, "Handle input messages")
     .def("handle_output", &Client::handle_output, "Handle output messages")
@@ -166,5 +181,8 @@ PYBIND11_MODULE(pyecho, m) {
     .def("writeDouble", &MessageWriter::write_double, "Write a double")
     .def("writeString", &MessageWriter::write_string, "Write a string")
     .def("cloneData", &MessageWriter::clone_data, "Clone current data to message");
+
+    m.def("readTimestamp", &read_timestamp, "Read a timestamp from message");
+    m.def("writeTimestamp", &write_timestamp, "Write a timestamp to message");
 
 }

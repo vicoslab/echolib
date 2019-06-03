@@ -47,6 +47,10 @@ registerType(double, lambda x: x.readDouble(), lambda x, o: x.writeDouble(o), co
 registerType(char, lambda x: x.readChar(), lambda x, o: x.writeChar(o))
 registerType(bool, lambda x: x.readBool(), lambda x, o: x.writeBool(o), convertBool)
 
+import datetime
+
+registerType(datetime.datetime, readTimestamp, writeTimestamp)
+
 def readList(cls, reader):
     objects = []
     n = reader.readInt()
@@ -152,6 +156,24 @@ class Dictionary(dict):
 
 registerType(Dictionary, Dictionary.read, Dictionary.write)
 
+class Header(object):
+    def __init__(self, source = "", timestamp = None):
+        self.source = source
+        if timestamp == None:
+            self.timestamp = datetime.datetime.now()
+        else:
+            self.timestamp = timestamp
+
+    @staticmethod
+    def read(reader):
+        return Header(readType(str, reader), readType(datetime.datetime, reader))
+
+    @staticmethod
+    def write(writer, obj):
+        writeType(str, obj.source)
+        writeType(datetime.datetime, obj.timestamp)
+
+registerType(Header, Header.read, Header.write)
 
 class DictionarySubscriber(Subscriber):
 

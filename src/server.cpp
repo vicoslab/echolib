@@ -12,7 +12,7 @@
 #include <errno.h>
 
 #include "debug.h"
-#include "server.h"
+#include <echolib/server.h>
 
 #define SOCKET_BUFFER_SIZE 1024 * 1024
 #define MAX_SEND_MESSAGE_QUEUE 10000
@@ -123,6 +123,14 @@ int ClientConnection::get_group() const {
 
 int ClientConnection::get_file_descriptor() {
 	return fd;
+}
+
+string ClientConnection::get_name() const {
+	return name;
+}
+
+void ClientConnection::set_name(string name) {
+	this->name = name;
 }
 
 bool ClientConnection::handle_input() {

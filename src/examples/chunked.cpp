@@ -6,8 +6,8 @@
 #include <iostream>
 #include <fstream>
 
-#include "client.h"
-#include "datatypes.h"
+#include <echolib/client.h>
+#include <echolib/datatypes.h>
 
 using namespace std;
 using namespace echolib;
@@ -62,7 +62,7 @@ int main(int argc, char** argv) {
             write = m > 0;
         };
 
-        TypedPublisher<string,true> pub(client, "chunked");
+        TypedPublisher<string> pub(client, "chunked");
         SubscriptionWatcher watch(client, "chunked", subscribe_callback);
 
         int counter = 0;
@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 
         };
 
-        TypedSubscriber<string, true> sub(client, "chunked", chunked_callback);
+        TypedSubscriber<string> sub(client, "chunked", chunked_callback);
 
         while(loop->wait(10)) {
         }

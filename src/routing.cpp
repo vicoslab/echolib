@@ -6,7 +6,7 @@
 #include <sys/un.h>
 
 #include "debug.h"
-#include "routing.h"
+#include <echolib/routing.h>
 
 //https://stackoverflow.com/questions/8104904/identify-program-that-connects-to-a-unix-domain-socket
 #define MAX_RECEIVED_MESSAGES_SIZE 50000000 //50 MB
@@ -212,12 +212,16 @@ void Router::print_statistics() const {
 
     cout << clients.size() << " clients connected" <<  endl;
 
-    cout << "FID\tOUT\tIN\tDROP" << endl;
+    cout << "FID\tNAME\t\tOUT\tIN\tDROP" << endl;
 
     for (auto client : clients) {
         ClientStatistics stats = client->get_statistics();
 
-        cout << client->get_file_descriptor() << "\t" << format_bytes(stats.data_read) << "\t";
+        string name = client->get_name();
+
+        if (name.empty()) name = "\t";
+
+        cout << client->get_file_descriptor() << "\t" << name << "\t" << format_bytes(stats.data_read) << "\t";
 
         cout << format_bytes(stats.data_written) << "\t" << format_bytes(stats.data_dropped) << "\t";
 
@@ -293,9 +297,25 @@ SharedChannel Router::create_channel(const string &alias, SharedClientConnection
 
 }
 
+SharedClientConnection Router::find(int fid) {
+
+    for (set<SharedClientConnection>::iterator it = clients.begin(); it != clients.end(); it++) {
+
+        if ((*it)->get_file_descriptor() < fid) continue;
+        if ((*it)->get_file_descriptor() == fid) return *it;
+
+        break;
+
+    }
+
+    return SharedClientConnection();
+
+}
+
 SharedDictionary Router::handle_command(SharedClientConnection client, SharedDictionary command) {
     if (!command->contains("key")) {
-        DEBUGMSG("Received illegal command message\n");
+        DEBUGMSG("Received illegal command message from client %s (FID=%d)\n", client->get_name().c_str(),
+            client->get_file_descriptor());
         return SharedDictionary();
     }
 
@@ -436,7 +456,28 @@ SharedDictionary Router::handle_command(SharedClientConnection client, SharedDic
         return generate_confirm_command(key);
 
     }
+    case ECHO_COMMAND_SET_NAME: {
 
+        string name = command->get<string>("name", "");
+
+        client->set_name(name);
+
+        return generate_confirm_command(key);
+
+    }
+    case ECHO_COMMAND_GET_NAME: {
+
+        int fid = command->get<int>("fid", -1);
+
+        SharedClientConnection r = find(fid);
+
+        if (!r) return generate_error_command(key, "Not found");
+
+        SharedDictionary command = generate_command(ECHO_COMMAND_RESULT);
+        command->set<int>("fid", fid);
+        command->set<string>("name", r->get_name());
+        return command;
+    }
 
     }
 

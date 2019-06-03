@@ -89,8 +89,7 @@ class Client : public IOBase, public MessageHandler {
     friend Watcher;
 public:
 
-    Client();
-    Client(const string& address);
+    Client(const string& name = "", const string& address = "");
     virtual ~Client();
 
     virtual bool handle_input();
@@ -111,7 +110,7 @@ protected:
     bool subscribe(int channel, DataCallback callback);
     bool watch(int channel, WatchCallback callback);
     bool unwatch(int channel, WatchCallback callback);
-    void send(SharedMessage message);
+    void send(SharedMessage message, MessageCallback callback = NULL, int priority = 0);
     void lookup_channel(const string &alias, const string &type, function<void(SharedDictionary)> callback, bool create = true);
 
 private:
@@ -121,7 +120,7 @@ private:
 
     void initialize_common();
 
-    void send_command(SharedDictionary command, function<bool(SharedDictionary, SharedDictionary)> callback);
+    void send_command(SharedDictionary command, function<bool(SharedDictionary, SharedDictionary)> callback = NULL);
 
     bool handle_subscribe_response (SharedDictionary sent, SharedDictionary received);
     void handle_message(SharedMessage &message);
@@ -144,56 +143,46 @@ private:
 
 };
 
-SharedClient connect(const string& socket = string(), SharedIOLoop loop = default_loop());
+SharedClient connect(const string& socket = string(), const string& name = string(), SharedIOLoop loop = default_loop());
 
 class Subscriber : public MessageHandler {
     friend Client;
 public:
-    Subscriber(SharedClient client, const string &alias, const string &type = string());
+    Subscriber(SharedClient client, const string &alias, const string &type = string(), DataCallback callback = NULL);
 
     virtual ~Subscriber();
 
-    virtual void on_message(SharedMessage message) = 0;
+    virtual void on_message(SharedMessage message);
 
-    virtual void on_error(const std::exception& error) {};
+    virtual void on_error(const std::exception& error);
 
     bool subscribe();
 
     bool unsubscribe();
 
 protected:
-    Subscriber(SharedClient client, const string &alias, const string &type, DataCallback callback);
 
     virtual void on_ready();
 
 private:
+    DataCallback internal_callback;
+
     DataCallback callback;
 
     void lookup_callback(SharedDictionary lookup);
 
+    void data_callback(SharedMessage message);
+
     SharedClient client;
     int id = -1;
 
-};
-
-class ChunkedSubscriber : public Subscriber {
-    friend Client;
-public:
-    ChunkedSubscriber(SharedClient client, const string &alias, const string &type = string(), int pending_buffer = 10);
-
-    virtual ~ChunkedSubscriber();
-
-    virtual void on_chunk(SharedMessage message);
-
-private:
-
-    class PendingBuffer : public MessageWriter {
+    class ChunkList : public vector<SharedMessage> {
     public:
-        PendingBuffer(int length, int chunk_size);
+        ChunkList(int length, int chunk_size);
 
-        virtual ~PendingBuffer();
+        virtual ~ChunkList();
 
-        bool set_chunk(int index, MessageReader &reader);
+        bool set_chunk(int index, SharedMessage &message);
 
         bool is_complete() const;
 
@@ -203,16 +192,14 @@ private:
 
         int chunk_size;
 
-        vector<bool> chunk_present;
-
     };
 
-    int pending_buffer;
+    int pending_message;
 
-    map<long, shared_ptr<PendingBuffer> > pending;
+    map<long, shared_ptr<ChunkList> > pending;
+
 
 };
-
 
 class Watcher {
 public:
@@ -242,10 +229,12 @@ private:
 
 };
 
+#define DEFAULT_CHUNK_SIZE 10 * 1024
+
 class Publisher : public MessageHandler {
     friend Client;
 public:
-    Publisher(SharedClient client, const string &alias, const string &type = string());
+    Publisher(SharedClient client, const string &alias, const string &type = string(), int queue = -1, ssize_t chunk_size = DEFAULT_CHUNK_SIZE);
 
     virtual ~Publisher();
 
@@ -277,24 +266,13 @@ private:
 
     void lookup_callback(const string alias, SharedDictionary lookup);
 
+    void send_callback(const SharedMessage message, int state);
+
     SharedClient client;
     int id = -1;
+    int queue;
 
-};
-
-#define DEFAULT_CHUNK_SIZE 10 * 1024
-
-class ChunkedPublisher : public Publisher {
-public:
-    ChunkedPublisher(SharedClient client, const string &alias, const string &type = string(), int chunk_size = DEFAULT_CHUNK_SIZE);
-
-    virtual ~ChunkedPublisher();
-
-protected:
-
-    virtual bool send_message_internal(SharedMessage message);
-
-private:
+    int pending = 0;
 
     class ProxyBuffer : public Buffer {
     public:
@@ -314,7 +292,7 @@ private:
 
     };
 
-    int chunk_size;
+    ssize_t chunk_size;
 
     function<long()> identifier_generator;
 
@@ -322,14 +300,18 @@ private:
 
 class SubscriptionWatcher : public Watcher {
 public:
-    SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback);
+    SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback = NULL);
 
-    virtual ~SubscriptionWatcher() {};
+    virtual ~SubscriptionWatcher();
 
     virtual void on_event(SharedDictionary message);
 
+    int get_subscribers() const;
+
 private:
     function<void(int)> callback;
+
+    int subscribers;
 
 };
 

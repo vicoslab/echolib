@@ -11,7 +11,7 @@
 #include <cmath>
 
 #include "debug.h"
-#include "message.h"
+#include <echolib/message.h>
 #include "algorithms.h"
 
 using namespace std;
@@ -132,8 +132,10 @@ void MessageReader::copy_data(uchar* buffer, ssize_t length) {
     if (length < 1)
         length = message->get_length() - position;
 
-    if (message->get_length() - position < length)
+    if (message->get_length() - position < length) {
+        cout << position << " " << length <<  " " << message->get_length() << endl;
         throw EndOfBufferException();
+    }
 
     message->copy_data(position, buffer, length);
 
@@ -251,6 +253,26 @@ ssize_t MessageWriter::get_length() {
 
     return data_position;
 
+}
+
+
+DummyWriter::DummyWriter() : MessageWriter(NULL, false) {}
+
+DummyWriter::~DummyWriter() {}
+
+int DummyWriter::write_buffer(const uchar* buffer, ssize_t len) {
+
+    data_position += len;
+
+    return len;
+
+}
+
+int DummyWriter::write_buffer(MessageReader& reader, ssize_t len) {
+
+    data_position += len;
+
+    return len;
 }
 
 SharedMessage MessageWriter::clone_data() {
@@ -455,21 +477,24 @@ StreamWriter::~StreamWriter() {
 
 }
 
-bool StreamWriter::add_message(SharedMessage msg, int priority) {
+bool StreamWriter::add_message(SharedMessage msg, int priority, MessageCallback callback) {
 
     if (outgoing->empty() && !pending.message) {
-        pending = MessageContainer(msg, priority, 0);
+        pending = MessageContainer(msg, priority, time++, callback);
         reset();
         write_messages();
         return true;
     } else {
 
-        MessageContainer a(msg, priority, time++);
+        MessageContainer a(msg, priority, time++, callback);
 
         if (!outgoing->push(a)) {
 
             MessageContainer rm = outgoing->push_over(a);
             total_data_dropped += rm.message->get_length();
+
+            if (rm.callback)
+                rm.callback(rm.message, MESSAGE_CALLBACK_DROPPED);
 
             return false;
         } 
@@ -495,6 +520,11 @@ bool StreamWriter::write_messages() {
 
     while (!pending.is_empty()) {
         if (process_message()) {
+
+            if (pending.callback) {
+
+                pending.callback(pending.message, MESSAGE_CALLBACK_SENT); 
+            }
 
             if (!outgoing->empty()) {
                 pending = outgoing->top();
@@ -691,17 +721,6 @@ uchar* MemoryBuffer::get_buffer() const {
     return data;
 }
 
-MultiBufferMessage::MultiBufferMessage(const vector<SharedBuffer> &buffers) : Message(), length(0) {
-
-    for (vector<SharedBuffer>::const_iterator it = buffers.begin(); it != buffers.end(); ++it) {
-        if ((*it)->get_length() < 1) continue;
-        this->buffers.push_back(*it);
-        this->offsets.push_back(length);
-        length += (*it)->get_length();
-    }
-
-}
-
 MultiBufferMessage::~MultiBufferMessage() {
 
 }
@@ -727,6 +746,31 @@ ssize_t MultiBufferMessage::copy_data(ssize_t position, uchar* buffer, ssize_t l
 
     return offset;
 }
+
+OffsetBufferMessage::OffsetBufferMessage(const SharedBuffer buffer, ssize_t offset): buffer(buffer), offset(offset) {
+
+    if (offset > buffer->get_length())
+        throw EndOfBufferException();
+
+}
+
+OffsetBufferMessage::~OffsetBufferMessage() {
+
+
+}
+
+ssize_t OffsetBufferMessage::get_length() const {
+
+    return buffer->get_length() - offset;
+
+}
+
+ssize_t OffsetBufferMessage::copy_data(ssize_t position, uchar* buffer, ssize_t length) const {
+
+    return this->buffer->copy_data(position + offset, buffer, length);
+
+}
+
 
 static inline bool is_invalid_atribute_char(char c) {
     return !(isalnum(c) || c == '.' || c == '_');

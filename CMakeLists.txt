@@ -25,6 +25,8 @@ if(BUILD_DEBUG)
     add_definitions(-DECHOLIB_SOURCE_COMPILE_ROOT="${CMAKE_CURRENT_SOURCE_DIR}/src/")
 endif()
 
+include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/ ${CMAKE_CURRENT_SOURCE_DIR}/include/)
+
 # echo shared library
 add_library(echo SHARED
     src/loop.cpp
@@ -32,6 +34,7 @@ add_library(echo SHARED
     src/client.cpp
     src/server.cpp
     src/routing.cpp    
+    src/datatypes.cpp
     src/debug.cpp
 )
 
@@ -45,13 +48,13 @@ set_target_properties(echo PROPERTIES
 
 install(TARGETS echo EXPORT echolib_targets DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(FILES
-    src/loop.h
-    src/client.h
-    src/server.h
-    src/routing.h    
-    src/message.h
-    src/datatypes.h
-    src/helpers.h
+    include/echolib/loop.h
+    include/echolib/client.h
+    include/echolib/server.h
+    include/echolib/routing.h    
+    include/echolib/message.h
+    include/echolib/datatypes.h
+    include/echolib/helpers.h
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/echolib
 )
 
@@ -116,11 +119,9 @@ endif()
 # Examples
 if(BUILD_EXAMPLES)
     add_executable(chat src/examples/chat.cpp)
-    target_include_directories(chat PRIVATE src)
     target_link_libraries(chat echo)
 
     add_executable(chunked src/examples/chunked.cpp)
-    target_include_directories(chunked PRIVATE src)
     target_link_libraries(chunked echo)
 endif()
 
@@ -128,10 +129,8 @@ endif()
 # Examples
 if(BUILD_TESTS)
     add_executable(deadend src/tests/deadend.cpp)
-    target_include_directories(deadend PRIVATE src)
     target_link_libraries(deadend echo)
 
     add_executable(dynamic_client src/tests/dynamic_client.cpp)
-    target_include_directories(dynamic_client PRIVATE src)
     target_link_libraries(dynamic_client echo)
 endif()

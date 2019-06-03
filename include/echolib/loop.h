@@ -9,7 +9,7 @@
 #include <utility>
 #include <memory>
 
-#include "message.h"
+#include <echolib/message.h>
 
 using namespace std;
 

@@ -14,9 +14,9 @@
 #include <netinet/in.h>
 
 #include "debug.h"
-#include "message.h"
-#include "client.h"
-#include "datatypes.h"
+#include <echolib/message.h>
+#include <echolib/client.h>
+#include <echolib/datatypes.h>
 
 #define MAXEVENTS 8
 
@@ -107,9 +107,9 @@ static int connect_socket(const string& address) {
 
 }
 
-SharedClient connect(const string& address, SharedIOLoop loop) {
+SharedClient connect(const string& address, const string& name, SharedIOLoop loop) {
 
-    SharedClient client = make_shared<Client>(address);
+    SharedClient client = make_shared<Client>(name, address);
 
     loop->add_handler(client);
 
@@ -117,14 +117,21 @@ SharedClient connect(const string& address, SharedIOLoop loop) {
 
 }
 
-Client::Client() : Client("") { }
-
-Client::Client(const string &address) : fd(connect_socket(address)), writer(fd), reader(fd),
+Client::Client(const string& name, const string &address) : fd(connect_socket(address)), writer(fd), reader(fd),
     next_request_key(0), subscriptions(), watches() {
 
     initialize_common();
 
     connected = true;
+
+    if (!name.empty()) {
+
+        SharedDictionary command = generate_command(ECHO_COMMAND_SET_NAME);
+        command->set<string>("name", name);
+    
+        send_command(command);
+    }
+
 
 }
 
@@ -247,7 +254,8 @@ void Client::handle_message(SharedMessage &message) {
         int key = response->get<int>("key", -1);
         if (requests.find(key) == requests.end()) return;
         pair<SharedDictionary, function<void(SharedDictionary, SharedDictionary)> > pending = requests[key];
-        pending.second(pending.first, response);
+        if (pending.second)
+            pending.second(pending.first, response);
         requests.erase(key);
 
     } else {
@@ -363,13 +371,13 @@ bool Client::unwatch(int channel, WatchCallback callback) {
     return true;
 }
 
-void Client::send(SharedMessage message) {
+void Client::send(SharedMessage message, MessageCallback callback, int priority) {
 
     SYNCHRONIZED(mutex);
 
     if (!is_connected()) return;
 
-    writer.add_message(message, 0);
+    writer.add_message(message, priority, callback);
 
 }
 
@@ -425,19 +433,90 @@ void Subscriber::lookup_callback(SharedDictionary lookup) {
     on_ready();
 }
 
-Subscriber::Subscriber(SharedClient client, const string &alias, const string &type) :
-    Subscriber(client, alias, type, create_data_callback(bind(&Subscriber::on_message, this, std::placeholders::_1))) {
+void Subscriber::data_callback(SharedMessage chunk) {
+
+    MessageReader reader(chunk);
+
+    int sequence = reader.read_integer();
+
+    if (sequence < 0) {
+
+        shared_ptr<Message> message = make_shared<OffsetBufferMessage>(chunk, reader.get_position());
+
+        (*callback)(message);
+
+    } else {
+
+        long id = reader.read_long();
+
+        bool valid = true;
+
+        if (pending.find(id) != pending.end()) {
+
+            SharedMessage cropped = make_shared<OffsetBufferMessage>(chunk, reader.get_position());
+
+            valid = pending[id]->set_chunk(sequence, cropped);
+
+        } else {
+
+            if (sequence != 0) return;
+
+            if ((int)pending.size() > pending_message) {
+                pending.erase(std::prev(pending.end()));
+            }
+
+            long length = reader.read_long();
+            int chunk_size = reader.read_integer();
+
+            pending[id] = make_shared<ChunkList>(length, chunk_size);
+
+            SharedMessage cropped = make_shared<OffsetBufferMessage>(chunk, reader.get_position());
+
+            valid = pending[id]->set_chunk(sequence, cropped);
+
+        }
+
+        //MemoryBuffer buffer(chunk->get_length());
+        //chunk->copy_data(0, buffer.get_buffer(), buffer.get_length());
+
+        //string tmp((char*)buffer.get_buffer(), buffer.get_length());
+
+        if (!valid) {
+
+            pending.erase(id);
+            return;
+
+        }
+
+        if (pending[id]->is_complete()) {
+
+            shared_ptr<ChunkList> chunks = pending[id];
+
+            pending.erase(id);
+
+            shared_ptr<Message> message = make_shared<MultiBufferMessage>(chunks->cbegin(), chunks->cend());
+
+            MessageHandler::set_channel(message, chunk->get_channel());
+
+            (*callback)(message);
+
+        }
+
+    }
 
 }
 
-Subscriber::Subscriber(SharedClient client, const string &alias, const string &type, DataCallback callback) : callback(callback), client(client) {
+Subscriber::Subscriber(SharedClient client, const string &alias, const string &type, DataCallback callback) : client(client) {
 
     using namespace std::placeholders;
+
+    internal_callback = create_data_callback(bind(&Subscriber::data_callback, this, _1));
+
+    this->callback = (callback) ? callback : create_data_callback(bind(&Subscriber::on_message, this, _1));
 
     client->lookup_channel(alias, type, bind(&Subscriber::lookup_callback, this, _1));
 
 }
-
 
 Subscriber::~Subscriber() {
 
@@ -447,115 +526,53 @@ Subscriber::~Subscriber() {
 
 bool Subscriber::subscribe() {
     if (this->id < 1) return false;
-    return client->subscribe(id, callback);
+    return client->subscribe(id, internal_callback);
 }
 
 bool Subscriber::unsubscribe() {
     if (this->id < 1) return false;
-    return client->unsubscribe(id, callback);
+    return client->unsubscribe(id, internal_callback);
 }
 
 void Subscriber::on_ready() {
 
 }
 
-
-ChunkedSubscriber::ChunkedSubscriber(SharedClient client, const string &alias, const string &type, int pending_buffer) :
-    Subscriber(client, alias, string("chunked ") + type, create_data_callback(bind(&ChunkedSubscriber::on_chunk, this, std::placeholders::_1))),
-    pending_buffer(pending_buffer) {
+void Subscriber::on_message(SharedMessage message) {
 
 }
 
-ChunkedSubscriber::~ChunkedSubscriber() {
+void Subscriber::on_error(const std::exception& error) {
+
 
 }
 
-void ChunkedSubscriber::on_chunk(SharedMessage chunk) {
-
-    MessageReader reader(chunk);
-
-    long id = reader.read_long();
-    int sequence = reader.read_integer();
-
-    bool valid = true;
-
-    if (pending.find(id) != pending.end()) {
-
-        valid = pending[id]->set_chunk(sequence, reader);
-
-    } else {
-
-        if (sequence != 0) return;
-
-        if ((int)pending.size() > pending_buffer) {
-            pending.erase(std::prev(pending.end()));
-        }
-
-        long length = reader.read_long();
-        int chunk_size = reader.read_integer();
-        pending[id] = make_shared<PendingBuffer>(length, chunk_size);
-        valid = pending[id]->set_chunk(sequence, reader);
-
-    }
-
-    MemoryBuffer buffer(chunk->get_length());
-    chunk->copy_data(0, buffer.get_buffer(), buffer.get_length());
-
-    string tmp((char*)buffer.get_buffer(), buffer.get_length());
-
-    if (!valid) {
-
-        pending.erase(id);
-        return;
-
-    }
-
-    if (pending[id]->is_complete()) {
-        shared_ptr<PendingBuffer> buffer = pending[id];
-        pending.erase(id);
-        shared_ptr<Message> msg = make_shared<BufferedMessage>(*buffer);
-        MessageHandler::set_channel(msg, chunk->get_channel());
-        on_message(msg);
-    }
-
-}
-
-ChunkedSubscriber::PendingBuffer::PendingBuffer(int length, int chunk_size) : MessageWriter(length), chunk_size(chunk_size) {
+Subscriber::ChunkList::ChunkList(int length, int chunk_size) : vector<SharedMessage>(), chunk_size(chunk_size) {
     int chunks = (int) ceil((double) length / (double) chunk_size);
 
-    chunk_present.resize(chunks, false);
+    resize(chunks, SharedMessage());
 
 }
 
-ChunkedSubscriber::PendingBuffer::~PendingBuffer() {
+Subscriber::ChunkList::~ChunkList() {
 
 
 }
 
-bool ChunkedSubscriber::PendingBuffer::set_chunk(int index, MessageReader& reader) {
+bool Subscriber::ChunkList::set_chunk(int index, SharedMessage& chunk) {
 
-    ssize_t length = reader.get_length() - reader.get_position();
-
-    if (index > 0 && !chunk_present[index - 1])
+    if (index > 0 && !at(index - 1))
         return false;
 
-    write_buffer(reader, length);
-
-    chunk_present[index] = true;
+    (*this)[index] = chunk;
 
     return true;
 
 }
 
-bool ChunkedSubscriber::PendingBuffer::is_complete() const {
+bool Subscriber::ChunkList::is_complete() const {
 
-    return chunk_present[chunk_present.size() - 1];
-
-}
-
-int ChunkedSubscriber::PendingBuffer::chunks() const {
-
-    return chunk_present.size();
+    return (at(size() - 1)) ? true : false;
 
 }
 
@@ -613,11 +630,23 @@ void Publisher::lookup_callback(const string alias, SharedDictionary lookup) {
     on_ready();
 }
 
+void Publisher::send_callback(const SharedMessage, int state) {
+
+    if (state != MESSAGE_CALLBACK_SENT && state != MESSAGE_CALLBACK_DROPPED)
+        return;
+
+    pending--;
+
+}
+
 void Publisher::on_ready() {
 
 }
 
-Publisher::Publisher(SharedClient client, const string &alias, const string &type) : client(client) {
+Publisher::Publisher(SharedClient client, const string &alias, const string &type, int queue, ssize_t chunk_size) :
+    client(client), queue(queue), chunk_size(chunk_size) {
+
+    identifier_generator = std::bind(std::uniform_int_distribution<long> {}, std::mt19937(std::random_device {}()));
 
     using namespace std::placeholders;
 
@@ -656,79 +685,91 @@ bool Publisher::send_message(MessageWriter& writer) {
 
 bool Publisher::send_message_internal(SharedMessage message) {
 
+    //cout << pending << endl;
+
+    if (queue > 0 && pending >= queue)
+        return false;
+
     if (id <= 0) return false;
 
-    client->send(message);
-
-    return true;
-}
-
-ChunkedPublisher::ChunkedPublisher(SharedClient client, const string &alias, const string &type, int chunk_size) : Publisher(client, alias, string("chunked ") + type), chunk_size(chunk_size) {
-
-    identifier_generator = std::bind(std::uniform_int_distribution<long> {}, std::mt19937(std::random_device {}()));
-
-
-}
-
-ChunkedPublisher::~ChunkedPublisher() {
-
-
-}
-
-bool ChunkedPublisher::send_message_internal(SharedMessage message) {
-
-    if (get_channel_id() <= 0) return false;
+    using namespace std::placeholders;
 
     ssize_t length = message->get_length();
 
-    int chunks = (int) ceil((double) length / (double) chunk_size);
-    int position = 0;
+    pending++;
 
-    long identifier = identifier_generator();
+    if (length > chunk_size) {
 
-    for (int i = 0; i < chunks; i++) {
+        int chunks = (int) ceil((double) length / (double) chunk_size);
+        int position = 0;
 
-        shared_ptr<MemoryBuffer> header = make_shared<MemoryBuffer>((i == 0 ? 2 : 1) * (sizeof(long) + sizeof(int)));
-        MessageWriter writer(header->get_buffer(), header->get_length());
-        writer.write_long(identifier);
-        writer.write_integer(i);
-        if (i == 0) {
-            writer.write_long(length);
-            writer.write_integer(chunk_size);
+        long identifier = identifier_generator();
+
+        for (int i = 0; i < chunks; i++) {
+
+            shared_ptr<MemoryBuffer> header = make_shared<MemoryBuffer>((i == 0 ? 2 : 1) * (sizeof(long) + sizeof(int)));
+            MessageWriter writer(header->get_buffer(), header->get_length());
+            writer.write_integer(i);
+            writer.write_long(identifier);
+            if (i == 0) {
+                writer.write_long(length);
+                writer.write_integer(chunk_size);
+            }
+
+            ssize_t clen = min(length - position, (ssize_t) chunk_size);
+
+            vector<SharedBuffer> buffers;
+            buffers.push_back(header);
+            buffers.push_back(make_shared<ProxyBuffer>(message, position, clen));
+
+            shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(buffers);
+            MessageHandler::set_channel(chunk, get_channel_id());
+
+            if (i + 1 == chunks) {
+                client->send(chunk, bind(&Publisher::send_callback, this, _1, _2));
+            }
+            else
+                client->send(chunk);
+
+            position += chunk_size;
+
         }
 
-        ssize_t clen = min(length - position, (ssize_t) chunk_size);
+    } else {
+
+        shared_ptr<MemoryBuffer> header = make_shared<MemoryBuffer>(sizeof(int));
+        MessageWriter writer(header->get_buffer(), header->get_length());
+        writer.write_integer(-1); // Negative number denotes a single chunk message
 
         vector<SharedBuffer> buffers;
         buffers.push_back(header);
-        buffers.push_back(make_shared<ProxyBuffer>(message, position, clen));
+        buffers.push_back(message);
 
         shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(buffers);
+
         MessageHandler::set_channel(chunk, get_channel_id());
 
-        Publisher::send_message_internal(chunk);
-
-        position += chunk_size;
+        client->send(chunk, bind(&Publisher::send_callback, this, _1, _2));
 
     }
 
     return true;
 }
 
-ChunkedPublisher::ProxyBuffer::ProxyBuffer(SharedMessage parent, ssize_t start, ssize_t length) :
+Publisher::ProxyBuffer::ProxyBuffer(SharedMessage parent, ssize_t start, ssize_t length) :
     parent(parent), start(start), length(length) {
 
 }
 
-ChunkedPublisher::ProxyBuffer::~ProxyBuffer() {
+Publisher::ProxyBuffer::~ProxyBuffer() {
 
 }
 
-ssize_t ChunkedPublisher::ProxyBuffer::get_length() const {
+ssize_t Publisher::ProxyBuffer::get_length() const {
     return length;
 }
 
-ssize_t ChunkedPublisher::ProxyBuffer::copy_data(ssize_t position, uchar* buffer, ssize_t length) const {
+ssize_t Publisher::ProxyBuffer::copy_data(ssize_t position, uchar* buffer, ssize_t length) const {
 
     length = min(length, this->length - position);
 
@@ -738,7 +779,12 @@ ssize_t ChunkedPublisher::ProxyBuffer::copy_data(ssize_t position, uchar* buffer
 
 }
 
-SubscriptionWatcher::SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback) : Watcher(client, alias), callback(callback) {
+SubscriptionWatcher::SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback) : 
+    Watcher(client, alias), callback(callback), subscribers(0) {
+
+}
+
+SubscriptionWatcher::~SubscriptionWatcher() {
 
 }
 
@@ -747,10 +793,16 @@ void SubscriptionWatcher::on_event(SharedDictionary message) {
     string type = message->get<string>("type", "");
 
     if (type == "subscribe" || type == "unsubscribe" || type == "summary") {
-        int subscribers = message->get<int>("subscribers", 0);
-        callback(subscribers);
+        subscribers = message->get<int>("subscribers", 0);
+
+        if (callback)
+            callback(subscribers);
     }
 
+}
+
+int SubscriptionWatcher::get_subscribers() const {
+    return subscribers;
 }
 
 }

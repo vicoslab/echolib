@@ -6,8 +6,8 @@
 #include <thread>
 #include <chrono>
 
-#include "client.h"
-#include "datatypes.h"
+#include <echolib/client.h>
+#include <echolib/datatypes.h>
 
 using namespace std;
 using namespace echolib;

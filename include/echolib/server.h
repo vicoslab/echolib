@@ -11,8 +11,8 @@
 #include <mutex>
 #include <type_traits>
 
-#include "loop.h"
-#include "message.h"
+#include <echolib/loop.h>
+#include <echolib/message.h>
 
 namespace echolib {
 
@@ -30,7 +30,7 @@ typedef std::shared_ptr<Server> SharedServer;
 
 class ClientConnection : public IOBase {
 friend Server;
-  public:
+public:
 
     ClientConnection(int sfd, SharedServer server);
     virtual ~ClientConnection();
@@ -61,9 +61,15 @@ friend Server;
 
 	static bool comparator(const SharedClientConnection &lhs, const SharedClientConnection &rhs);
 
-  private:
+    string get_name() const;
+
+    void set_name(string name);
+
+private:
 
     int fd;
+
+    string name;
 
     StreamReader reader;
     StreamWriter writer;

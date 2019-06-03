@@ -3,8 +3,8 @@
 #ifndef ECHO_HELPERS_HPP_
 #define ECHO_HELPERS_HPP_
 
-#include "client.h"
-#include "datatypes.h"
+#include <echolib/client.h>
+#include <echolib/datatypes.h>
 
 namespace echolib {
 

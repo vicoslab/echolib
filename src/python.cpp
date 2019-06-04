@@ -163,6 +163,7 @@ PYBIND11_MODULE(pyecho, m) {
 
     py::class_<MessageReader>(m, "MessageReader")
     .def(py::init<SharedMessage>())
+    .def("readShort", &MessageReader::read_short, "Read a short")
     .def("readInt", &MessageReader::read_integer, "Read an integer")
     .def("readBool", &MessageReader::read_bool, "Read a boolean")
     .def("readLong", &MessageReader::read_long, "Read a long")
@@ -173,6 +174,7 @@ PYBIND11_MODULE(pyecho, m) {
 
     py::class_<MessageWriter>(m, "MessageWriter")
     .def(py::init<ssize_t>(), py::arg("size") = 0)
+    .def("writeShort", &MessageWriter::write_short, "Write a short")
     .def("writeInt", &MessageWriter::write_integer, "Write an integer")
     .def("writeBool", &MessageWriter::write_bool, "Write a boolean")
     .def("writeLong", &MessageWriter::write_long, "Write a long")

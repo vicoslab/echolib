@@ -243,12 +243,17 @@ public:
     /**
      * @return next integer
      */
-    int read_integer();
+    int16_t read_short();
+
+    /**
+     * @return next integer
+     */
+    int32_t read_integer();
 
     /**
      * @return next long integer
      */
-    long read_long();
+    int64_t read_long();
 
     /**
      * @return next Boolean value
@@ -334,9 +339,11 @@ public:
 
     }
 
-    int write_integer(int value);
+    int write_short(int16_t value);
 
-    int write_long(long value);
+    int write_integer(int32_t value);
+
+    int write_long(int64_t value);
 
     int write_bool(bool value);
 

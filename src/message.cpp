@@ -45,11 +45,21 @@ MessageReader::MessageReader(SharedMessage message) : message(message), position
 
 }
 
-int MessageReader::read_integer() {
+int16_t MessageReader::read_short() {
 
-    int result = 0;
+    int16_t result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(int));
+    copy_data((uchar*) &result, (ssize_t)sizeof(int16_t));
+
+    return result;
+
+}
+
+int32_t MessageReader::read_integer() {
+
+    int32_t result = 0;
+
+    copy_data((uchar*) &result, (ssize_t)sizeof(int32_t));
 
     return result;
 
@@ -66,11 +76,11 @@ bool MessageReader::read_bool() {
 }
 
 
-long MessageReader::read_long() {
+int64_t MessageReader::read_long() {
 
-    long result = 0;
+    int64_t result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(long));
+    copy_data((uchar*) &result, (ssize_t)sizeof(int64_t));
 
     return result;
 
@@ -205,9 +215,15 @@ int MessageWriter::write_buffer(MessageReader& reader, ssize_t len) {
 
 }
 
-int MessageWriter::write_integer(int value) {
+int MessageWriter::write_short(int16_t value) {
 
-    return write_buffer((uchar *) &value, sizeof(int));
+    return write_buffer((uchar *) &value, sizeof(int16_t));
+
+}
+
+int MessageWriter::write_integer(int32_t value) {
+
+    return write_buffer((uchar *) &value, sizeof(int32_t));
 
 }
 
@@ -217,9 +233,9 @@ int MessageWriter::write_bool(bool value) {
 
 }
 
-int MessageWriter::write_long(long value) {
+int MessageWriter::write_long(int64_t value) {
 
-    return write_buffer((uchar *) &value, sizeof(long));
+    return write_buffer((uchar *) &value, sizeof(int64_t));
 
 }
 

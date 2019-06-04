@@ -87,7 +87,7 @@ bool Channel::subscribe(SharedClientConnection client) {
 
         subscribers.insert(client);
         DEBUGMSG("Client FID=%d has subscribed to channel %d (%ld total)\n",
-                 client->get_file_descriptor(), get_identifier(), subscribers.size());
+                 client->get_file_descriptor(), get_identifier(), (long) subscribers.size());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
@@ -111,7 +111,7 @@ bool Channel::unsubscribe(SharedClientConnection client) {
 
         subscribers.erase(client);
         DEBUGMSG("Client FID=%d has unsubscribed from channel %d (%ld total)\n",
-                 client->get_file_descriptor(), get_identifier(), subscribers.size());
+                 client->get_file_descriptor(), get_identifier(), (long) subscribers.size());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());

@@ -67,7 +67,7 @@ template<typename T> using SharedTypedPublisher = shared_ptr<TypedPublisher<T> >
 template <> 
 inline void read(MessageReader& reader, std::chrono::system_clock::time_point& timepoint) {
     
-    std::chrono::microseconds raw((unsigned long) reader.read_long());
+    std::chrono::microseconds raw((uint64_t) reader.read_long());
 
     timepoint = std::chrono::system_clock::time_point(raw);
 
@@ -76,9 +76,9 @@ inline void read(MessageReader& reader, std::chrono::system_clock::time_point& t
 template <> 
 inline void write(MessageWriter& writer, const std::chrono::system_clock::time_point& timepoint) {
 
-    unsigned long microseconds = std::chrono::time_point_cast<std::chrono::microseconds>(timepoint).time_since_epoch().count();
+    uint64_t microseconds = std::chrono::time_point_cast<std::chrono::microseconds>(timepoint).time_since_epoch().count();
 
-    writer.write_long((long) microseconds);
+    writer.write_long((int64_t) microseconds);
 
 }
 

@@ -294,7 +294,7 @@ private:
 
     ssize_t chunk_size;
 
-    function<long()> identifier_generator;
+    function<int64_t()> identifier_generator;
 
 };
 

@@ -447,7 +447,7 @@ void Subscriber::data_callback(SharedMessage chunk) {
 
     } else {
 
-        long id = reader.read_long();
+        int64_t id = reader.read_long();
 
         bool valid = true;
 
@@ -465,7 +465,7 @@ void Subscriber::data_callback(SharedMessage chunk) {
                 pending.erase(std::prev(pending.end()));
             }
 
-            long length = reader.read_long();
+            int64_t length = reader.read_long();
             int chunk_size = reader.read_integer();
 
             pending[id] = make_shared<ChunkList>(length, chunk_size);
@@ -646,7 +646,7 @@ void Publisher::on_ready() {
 Publisher::Publisher(SharedClient client, const string &alias, const string &type, int queue, ssize_t chunk_size) :
     client(client), queue(queue), chunk_size(chunk_size) {
 
-    identifier_generator = std::bind(std::uniform_int_distribution<long> {}, std::mt19937(std::random_device {}()));
+    identifier_generator = std::bind(std::uniform_int_distribution<int64_t> {}, std::mt19937(std::random_device {}()));
 
     using namespace std::placeholders;
 
@@ -703,11 +703,11 @@ bool Publisher::send_message_internal(SharedMessage message) {
         int chunks = (int) ceil((double) length / (double) chunk_size);
         int position = 0;
 
-        long identifier = identifier_generator();
+        int64_t identifier = identifier_generator();
 
         for (int i = 0; i < chunks; i++) {
 
-            shared_ptr<MemoryBuffer> header = make_shared<MemoryBuffer>((i == 0 ? 2 : 1) * (sizeof(long) + sizeof(int)));
+            shared_ptr<MemoryBuffer> header = make_shared<MemoryBuffer>((i == 0 ? 2 : 1) * (sizeof(int64_t) + sizeof(int32_t)));
             MessageWriter writer(header->get_buffer(), header->get_length());
             writer.write_integer(i);
             writer.write_long(identifier);

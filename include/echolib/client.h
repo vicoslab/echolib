@@ -196,7 +196,7 @@ private:
 
     int pending_message;
 
-    map<long, shared_ptr<ChunkList> > pending;
+    map<int64_t, shared_ptr<ChunkList> > pending;
 
 
 };

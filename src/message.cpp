@@ -49,7 +49,7 @@ int16_t MessageReader::read_short() {
 
     int16_t result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(int16_t));
+    copy_data((uchar*) &result, (size_t)sizeof(int16_t));
 
     return result;
 
@@ -59,7 +59,7 @@ int32_t MessageReader::read_integer() {
 
     int32_t result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(int32_t));
+    copy_data((uchar*) &result, (size_t)sizeof(int32_t));
 
     return result;
 
@@ -69,7 +69,7 @@ bool MessageReader::read_bool() {
 
     char result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(char));
+    copy_data((uchar*) &result, (size_t)sizeof(char));
 
     return result > 0;
 
@@ -80,7 +80,7 @@ int64_t MessageReader::read_long() {
 
     int64_t result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(int64_t));
+    copy_data((uchar*) &result, (size_t)sizeof(int64_t));
 
     return result;
 
@@ -90,7 +90,7 @@ char MessageReader::read_char() {
 
     char result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(char));
+    copy_data((uchar*) &result, (size_t)sizeof(char));
 
     return result;
 
@@ -100,7 +100,7 @@ float MessageReader::read_float() {
 
     float result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(float));
+    copy_data((uchar*) &result, (size_t)sizeof(float));
 
     return result;
 
@@ -110,34 +110,34 @@ double MessageReader::read_double() {
 
     double result = 0;
 
-    copy_data((uchar*) &result, (ssize_t)sizeof(double));
+    copy_data((uchar*) &result, (size_t)sizeof(double));
 
     return result;
 
 }
 
 std::string MessageReader::read_string() {
-    ssize_t len = (ssize_t) read_integer();
+    size_t len = (size_t) read_integer();
 
     std::string result;
     
     if (len) { 
         result.resize(len);
-        copy_data((uchar*) &result[0], (ssize_t)sizeof(char) * len);
+        copy_data((uchar*) &result[0], (size_t)sizeof(char) * len);
     }
 
     return result;
 }
 
-ssize_t MessageReader::get_position() const {
+size_t MessageReader::get_position() const {
     return position;
 }
 
-ssize_t MessageReader::get_length() const {
+size_t MessageReader::get_length() const {
     return message->get_length();
 }
 
-void MessageReader::copy_data(uchar* buffer, ssize_t length) {
+void MessageReader::copy_data(uchar* buffer, size_t length) {
 
     if (length < 1)
         length = message->get_length() - position;
@@ -160,7 +160,7 @@ MessageWriter::~MessageWriter() {
 
 }
 
-MessageWriter::MessageWriter(ssize_t length): data_owned(true), data_length(length), data_position(0) {
+MessageWriter::MessageWriter(size_t length): data_owned(true), data_length(length), data_position(0) {
     if (data_length > 0) {
         data = (uchar*) malloc(sizeof(uchar) * data_length);
     } else {
@@ -168,11 +168,11 @@ MessageWriter::MessageWriter(ssize_t length): data_owned(true), data_length(leng
     }
 }
 
-MessageWriter::MessageWriter(uchar* buffer, ssize_t length): data_owned(false), data(buffer), data_length(length), data_position(0) {
+MessageWriter::MessageWriter(uchar* buffer, size_t length): data_owned(false), data(buffer), data_length(length), data_position(0) {
 
 }
 
-int MessageWriter::write_buffer(const uchar* buffer, ssize_t len) {
+int MessageWriter::write_buffer(const uchar* buffer, size_t len) {
 
     if (len > data_length - data_position) {
         if (!data_owned) throw EndOfBufferException();
@@ -193,7 +193,7 @@ int MessageWriter::write_buffer(const uchar* buffer, ssize_t len) {
 
 }
 
-int MessageWriter::write_buffer(MessageReader& reader, ssize_t len) {
+int MessageWriter::write_buffer(MessageReader& reader, size_t len) {
     len = min(len, reader.get_length() - reader.get_position());
 
     if (len > data_length - data_position) {
@@ -265,7 +265,7 @@ int MessageWriter::write_string(const std::string& value) {
     
 }
 
-ssize_t MessageWriter::get_length() {
+size_t MessageWriter::get_length() {
 
     return data_position;
 
@@ -276,7 +276,7 @@ DummyWriter::DummyWriter() : MessageWriter(NULL, false) {}
 
 DummyWriter::~DummyWriter() {}
 
-int DummyWriter::write_buffer(const uchar* buffer, ssize_t len) {
+int DummyWriter::write_buffer(const uchar* buffer, size_t len) {
 
     data_position += len;
 
@@ -284,7 +284,7 @@ int DummyWriter::write_buffer(const uchar* buffer, ssize_t len) {
 
 }
 
-int DummyWriter::write_buffer(MessageReader& reader, ssize_t len) {
+int DummyWriter::write_buffer(MessageReader& reader, size_t len) {
 
     data_position += len;
 
@@ -364,7 +364,7 @@ int StreamReader::get_error() const {
 }
 
 
-unsigned long StreamReader::get_read_data() const {
+uint64_t StreamReader::get_read_data() const {
     return total_data_read;
 }
 
@@ -681,7 +681,7 @@ void Message::set_channel(int channel) {
 
 }
 
-BufferedMessage::BufferedMessage(uchar *data, ssize_t length, bool owned): MemoryBuffer(data, length, owned), Message() {
+BufferedMessage::BufferedMessage(uchar *data, size_t length, bool owned): MemoryBuffer(data, length, owned), Message() {
 
 }
 
@@ -697,11 +697,11 @@ BufferedMessage::~BufferedMessage() {
 
 }
 
-MemoryBuffer::MemoryBuffer(uchar *data, ssize_t length, bool owned): data(data), data_length(length), data_owned(owned) {
+MemoryBuffer::MemoryBuffer(uchar *data, size_t length, bool owned): data(data), data_length(length), data_owned(owned) {
 
 }
 
-MemoryBuffer::MemoryBuffer(ssize_t length) : data_length(length), data_owned(true) {
+MemoryBuffer::MemoryBuffer(size_t length) : data_length(length), data_owned(true) {
     data = (uchar*) malloc(sizeof(uchar) * length);
 }
 
@@ -719,11 +719,11 @@ MemoryBuffer::~MemoryBuffer() {
     }
 }
 
-ssize_t MemoryBuffer::get_length() const {
+size_t MemoryBuffer::get_length() const {
     return data_length;
 }
 
-ssize_t MemoryBuffer::copy_data(ssize_t position, uchar* dst, ssize_t length) const {
+size_t MemoryBuffer::copy_data(size_t position, uchar* dst, size_t length) const {
     length = min(length, data_length - position);
 
     if (length < 1) return 0;
@@ -741,21 +741,21 @@ MultiBufferMessage::~MultiBufferMessage() {
 
 }
 
-ssize_t MultiBufferMessage::get_length() const {
+size_t MultiBufferMessage::get_length() const {
 
     return length;
 
 }
 
-ssize_t MultiBufferMessage::copy_data(ssize_t position, uchar* buffer, ssize_t length) const {
+size_t MultiBufferMessage::copy_data(size_t position, uchar* buffer, size_t length) const {
 
-    vector<ssize_t>::const_iterator it = std::upper_bound (offsets.begin(), offsets.end(), position); // Find first element that is greater than position
+    vector<size_t>::const_iterator it = std::upper_bound (offsets.begin(), offsets.end(), position); // Find first element that is greater than position
     int index = (it - offsets.begin()) - 1; // Find index of previous element
 
-    ssize_t offset = 0;
+    size_t offset = 0;
     for (unsigned int i = index; i < offsets.size(); i++) {
-        ssize_t pos = position + offset - offsets[i];
-        ssize_t len = min(buffers[i]->get_length() - pos, length - offset);
+        size_t pos = position + offset - offsets[i];
+        size_t len = min(buffers[i]->get_length() - pos, length - offset);
         if (len < 1) break; // We are done, no more data to copy
         offset += buffers[i]->copy_data(pos, &(buffer[offset]), len);
     }
@@ -763,7 +763,7 @@ ssize_t MultiBufferMessage::copy_data(ssize_t position, uchar* buffer, ssize_t l
     return offset;
 }
 
-OffsetBufferMessage::OffsetBufferMessage(const SharedBuffer buffer, ssize_t offset): buffer(buffer), offset(offset) {
+OffsetBufferMessage::OffsetBufferMessage(const SharedBuffer buffer, size_t offset): buffer(buffer), offset(offset) {
 
     if (offset > buffer->get_length())
         throw EndOfBufferException();
@@ -775,13 +775,13 @@ OffsetBufferMessage::~OffsetBufferMessage() {
 
 }
 
-ssize_t OffsetBufferMessage::get_length() const {
+size_t OffsetBufferMessage::get_length() const {
 
     return buffer->get_length() - offset;
 
 }
 
-ssize_t OffsetBufferMessage::copy_data(ssize_t position, uchar* buffer, ssize_t length) const {
+size_t OffsetBufferMessage::copy_data(size_t position, uchar* buffer, size_t length) const {
 
     return this->buffer->copy_data(position + offset, buffer, length);
 

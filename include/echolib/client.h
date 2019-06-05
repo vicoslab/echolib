@@ -234,7 +234,7 @@ private:
 class Publisher : public MessageHandler {
     friend Client;
 public:
-    Publisher(SharedClient client, const string &alias, const string &type = string(), int queue = -1, ssize_t chunk_size = DEFAULT_CHUNK_SIZE);
+    Publisher(SharedClient client, const string &alias, const string &type = string(), int queue = -1, size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
     virtual ~Publisher();
 
@@ -276,23 +276,23 @@ private:
 
     class ProxyBuffer : public Buffer {
     public:
-        ProxyBuffer(SharedMessage parent, ssize_t start, ssize_t length);
+        ProxyBuffer(SharedMessage parent, size_t start, size_t length);
 
         virtual ~ProxyBuffer();
 
-        virtual ssize_t get_length() const;
+        virtual size_t get_length() const;
 
-        virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
+        virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const;
 
     private:
 
         SharedMessage parent;
-        ssize_t start;
-        ssize_t length;
+        size_t start;
+        size_t length;
 
     };
 
-    ssize_t chunk_size;
+    size_t chunk_size;
 
     function<int64_t()> identifier_generator;
 

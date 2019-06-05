@@ -644,7 +644,7 @@ void Publisher::on_ready() {
 
 }
 
-Publisher::Publisher(SharedClient client, const string &alias, const string &type, int queue, ssize_t chunk_size) :
+Publisher::Publisher(SharedClient client, const string &alias, const string &type, int queue, size_t chunk_size) :
     client(client), queue(queue), chunk_size(chunk_size) {
 
     identifier_generator = std::bind(std::uniform_int_distribution<int64_t> {}, std::mt19937(std::random_device {}()));
@@ -695,7 +695,7 @@ bool Publisher::send_message_internal(SharedMessage message) {
 
     using namespace std::placeholders;
 
-    ssize_t length = message->get_length();
+    size_t length = message->get_length();
 
     pending++;
 
@@ -717,7 +717,7 @@ bool Publisher::send_message_internal(SharedMessage message) {
                 writer.write_integer(chunk_size);
             }
 
-            ssize_t clen = min(length - position, (ssize_t) chunk_size);
+            size_t clen = min(length - position, (size_t) chunk_size);
 
             vector<SharedBuffer> buffers;
             buffers.push_back(header);
@@ -757,7 +757,7 @@ bool Publisher::send_message_internal(SharedMessage message) {
     return true;
 }
 
-Publisher::ProxyBuffer::ProxyBuffer(SharedMessage parent, ssize_t start, ssize_t length) :
+Publisher::ProxyBuffer::ProxyBuffer(SharedMessage parent, size_t start, size_t length) :
     parent(parent), start(start), length(length) {
 
 }
@@ -766,11 +766,11 @@ Publisher::ProxyBuffer::~ProxyBuffer() {
 
 }
 
-ssize_t Publisher::ProxyBuffer::get_length() const {
+size_t Publisher::ProxyBuffer::get_length() const {
     return length;
 }
 
-ssize_t Publisher::ProxyBuffer::copy_data(ssize_t position, uchar* buffer, ssize_t length) const {
+size_t Publisher::ProxyBuffer::copy_data(size_t position, uchar* buffer, size_t length) const {
 
     length = min(length, this->length - position);
 

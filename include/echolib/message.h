@@ -57,35 +57,35 @@ typedef shared_ptr<Message> SharedMessage;
 class Buffer {
 public:
 
-    virtual ssize_t get_length() const = 0;
+    virtual size_t get_length() const = 0;
 
-    virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const = 0;
+    virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const = 0;
 
 };
 
 class MemoryBuffer : public virtual Buffer {
 public:
-    MemoryBuffer(ssize_t length);
+    MemoryBuffer(size_t length);
 
     MemoryBuffer(MessageWriter &writer);
 
     virtual ~MemoryBuffer();
 
-    virtual ssize_t get_length() const;
+    virtual size_t get_length() const;
 
-    virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
+    virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const;
 
     uchar* get_buffer() const;
 
 protected:
 
-    MemoryBuffer(uchar *data, ssize_t length, bool owned = true);
+    MemoryBuffer(uchar *data, size_t length, bool owned = true);
 
 private:
 
     uchar *data;
 
-    ssize_t data_length;
+    size_t data_length;
 
     bool data_owned;
 
@@ -146,7 +146,7 @@ private:
 class BufferedMessage : public Message, virtual public MemoryBuffer {
 public:
 
-    BufferedMessage(uchar *data, ssize_t length, bool owned = true);
+    BufferedMessage(uchar *data, size_t length, bool owned = true);
 
     BufferedMessage(MessageWriter& writer);
 
@@ -161,7 +161,7 @@ public:
 private:
 
     uchar *data;
-    ssize_t data_length;
+    size_t data_length;
     bool data_owned;
 
 };
@@ -184,33 +184,33 @@ public:
 
     virtual ~MultiBufferMessage();
 
-    virtual ssize_t get_length() const;
+    virtual size_t get_length() const;
 
-    virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
+    virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const;
 
 private:
 
     vector<SharedBuffer> buffers;
-    vector<ssize_t> offsets;
-    ssize_t length;
+    vector<size_t> offsets;
+    size_t length;
 
 };
 
 class OffsetBufferMessage : public Message {
 public:
 
-    OffsetBufferMessage(const SharedBuffer buffer, ssize_t offset = 0);
+    OffsetBufferMessage(const SharedBuffer buffer, size_t offset = 0);
 
     virtual ~OffsetBufferMessage();
 
-    virtual ssize_t get_length() const;
+    virtual size_t get_length() const;
 
-    virtual ssize_t copy_data(ssize_t position, uchar* buffer, ssize_t length) const;
+    virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const;
 
 private:
 
     SharedBuffer buffer;
-    ssize_t offset;
+    size_t offset;
     
 };
 
@@ -280,17 +280,17 @@ public:
      */
     string read_string();
 
-    ssize_t get_position() const;
+    size_t get_position() const;
 
-    ssize_t get_length() const;
+    size_t get_length() const;
 
-    void copy_data(uchar* buffer, ssize_t length = 0);
+    void copy_data(uchar* buffer, size_t length = 0);
 
 private:
 
     SharedMessage message;
 
-    ssize_t position;
+    size_t position;
 
 };
 
@@ -328,9 +328,9 @@ public:
      */
     virtual ~MessageWriter();
 
-    MessageWriter(ssize_t length = 0);
+    MessageWriter(size_t length = 0);
 
-    MessageWriter(uchar* buffer, ssize_t length);
+    MessageWriter(uchar* buffer, size_t length);
 
     template<typename T> void write(const T& value) {
 
@@ -355,20 +355,20 @@ public:
 
     int write_string(const string& value);
 
-    virtual int write_buffer(const uchar* buffer, ssize_t len);
+    virtual int write_buffer(const uchar* buffer, size_t len);
 
-    virtual int write_buffer(MessageReader& reader, ssize_t len);
+    virtual int write_buffer(MessageReader& reader, size_t len);
 
     SharedMessage clone_data();
 
-    ssize_t get_length();
+    size_t get_length();
 
 protected:
 
     bool data_owned;
     uchar *data;
-    ssize_t data_length;
-    ssize_t data_position;
+    size_t data_length;
+    size_t data_position;
 
 };
 
@@ -379,9 +379,9 @@ public:
 
     virtual ~DummyWriter();
 
-    virtual int write_buffer(const uchar* buffer, ssize_t len);
+    virtual int write_buffer(const uchar* buffer, size_t len);
 
-    virtual int write_buffer(MessageReader& reader, ssize_t len);
+    virtual int write_buffer(MessageReader& reader, size_t len);
 
 };
 
@@ -410,7 +410,7 @@ template<typename T> void write(MessageWriter& writer, const vector<T>& src) {
     }
 }
 
-template<typename T> ssize_t message_length(const T data) {
+template<typename T> size_t message_length(const T data) {
     
     DummyWriter writer;
     write(writer, data);
@@ -491,8 +491,8 @@ private:
 
     int message_channel;
     uchar *data;
-    ssize_t data_length;
-    ssize_t data_current;
+    size_t data_length;
+    size_t data_current;
     uint64_t data_read_counter;
     uint64_t total_data_read;
 
@@ -568,12 +568,12 @@ private:
     MessageContainer pending;
 
     uchar *buffer;
-    ssize_t buffer_position;
-    ssize_t buffer_length;
+    size_t buffer_position;
+    size_t buffer_length;
 
     int state;
-    ssize_t message_position;
-    ssize_t message_length;
+    size_t message_position;
+    size_t message_length;
 
     uint64_t time;
 

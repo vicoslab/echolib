@@ -158,7 +158,7 @@ PYBIND11_MODULE(pyecho, m) {
     .def("getChannel", &Message::get_channel, "Get channel");
 
     py::class_<BufferedMessage, Message, MemoryBuffer, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
-    .def(py::init<uchar*, int, bool>())
+    .def(py::init<uchar*, size_t, bool>())
     .def("getChannel", &BufferedMessage::get_channel, "Get channel");
 
     py::class_<MessageReader>(m, "MessageReader")
@@ -173,7 +173,7 @@ PYBIND11_MODULE(pyecho, m) {
     .def("readString", &MessageReader::read_string, "Read a string");
 
     py::class_<MessageWriter>(m, "MessageWriter")
-    .def(py::init<ssize_t>(), py::arg("size") = 0)
+    .def(py::init<size_t>(), py::arg("size") = (size_t) 0)
     .def("writeShort", &MessageWriter::write_short, "Write a short")
     .def("writeInt", &MessageWriter::write_integer, "Write an integer")
     .def("writeBool", &MessageWriter::write_bool, "Write a boolean")

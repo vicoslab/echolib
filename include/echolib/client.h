@@ -148,7 +148,7 @@ SharedClient connect(const string& socket = string(), const string& name = strin
 class Subscriber : public MessageHandler {
     friend Client;
 public:
-    Subscriber(SharedClient client, const string &alias, const string &type = string(), DataCallback callback = NULL);
+    Subscriber(SharedClient client, const string &alias, const string &type = string(), DataCallback callback = NULL, int pending_capacity = 10);
 
     virtual ~Subscriber();
 
@@ -194,7 +194,7 @@ private:
 
     };
 
-    int pending_message;
+    int pending_capacity;
 
     map<int64_t, shared_ptr<ChunkList> > pending;
 

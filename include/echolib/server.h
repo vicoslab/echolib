@@ -17,9 +17,9 @@
 namespace echolib {
 
 typedef struct ClientStatistics {
-    unsigned long data_read;
-    unsigned long data_written;
-    unsigned long data_dropped;
+    uint64_t data_read;
+    uint64_t data_written;
+    uint64_t data_dropped;
 } ClientStatistics;
 
 class ClientConnection;

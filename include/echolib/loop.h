@@ -61,7 +61,7 @@ public:
 
 	virtual void remove_handler(SharedIOBase base);
 
-	virtual bool wait(long timeout = -1);
+	virtual bool wait(int64_t timeout = -1);
 
 private:
 
@@ -73,7 +73,7 @@ private:
 
 SharedIOLoop default_loop();
 
-bool wait(long timeout = -1);
+bool wait(int64_t timeout = -1);
 	
 
 }

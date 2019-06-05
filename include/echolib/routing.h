@@ -83,7 +83,7 @@ friend ClientConnection;
 
     ClientSet clients;
 
-    long received_messages_size;
+    int64_t received_messages_size;
 
 };
 

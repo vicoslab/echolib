@@ -7,7 +7,7 @@
 
 using namespace std;
 
-long __start_time = clock();
+uint64_t __start_time = clock();
 
 #ifdef ECHOLIB_SOURCE_COMPILE_ROOT
 const char* _source_root = ECHOLIB_SOURCE_COMPILE_ROOT;

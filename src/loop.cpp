@@ -67,7 +67,7 @@ void IOLoop::remove_handler(SharedIOBase base) {
 
 }
 
-bool IOLoop::wait(long timeout) {
+bool IOLoop::wait(int64_t timeout) {
 
     //SYNCHRONIZED(mutex);
 
@@ -82,7 +82,7 @@ bool IOLoop::wait(long timeout) {
 
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(current - start);
 
-        long remaining = write_done ? -1 : 1;
+        int64_t remaining = write_done ? -1 : 1;
 
         if (timeout > 0) {
             remaining = timeout - (duration.count());
@@ -133,7 +133,7 @@ SharedIOLoop default_loop() {
 
 }
 
-bool wait(long timeout) {
+bool wait(int64_t timeout) {
 
     return default_loop()->wait(timeout);
 

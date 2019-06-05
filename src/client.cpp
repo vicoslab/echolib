@@ -461,7 +461,7 @@ void Subscriber::data_callback(SharedMessage chunk) {
 
             if (sequence != 0) return;
 
-            if ((int)pending.size() > pending_message) {
+            if ((int)pending.size() > pending_capacity && pending_capacity > 0) {
                 pending.erase(std::prev(pending.end()));
             }
 
@@ -506,7 +506,8 @@ void Subscriber::data_callback(SharedMessage chunk) {
 
 }
 
-Subscriber::Subscriber(SharedClient client, const string &alias, const string &type, DataCallback callback) : client(client) {
+Subscriber::Subscriber(SharedClient client, const string &alias, const string &type, DataCallback callback, int pending_capacity) : 
+    client(client), pending_capacity(pending_capacity) {
 
     using namespace std::placeholders;
 

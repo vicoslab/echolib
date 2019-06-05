@@ -474,7 +474,7 @@ public:
 
     int get_error() const;
 
-    unsigned long get_read_data() const;
+    uint64_t get_read_data() const;
 
 private:
 
@@ -491,10 +491,10 @@ private:
 
     int message_channel;
     uchar *data;
-    int data_length;
-    int data_current;
-    long data_read_counter;
-    long total_data_read;
+    ssize_t data_length;
+    ssize_t data_current;
+    uint64_t data_read_counter;
+    uint64_t total_data_read;
 
     uchar *buffer;
     ssize_t buffer_length;
@@ -575,10 +575,10 @@ private:
     ssize_t message_position;
     ssize_t message_length;
 
-    unsigned long time;
+    uint64_t time;
 
-    unsigned long total_data_written;
-    unsigned long total_data_dropped;
+    uint64_t total_data_written;
+    uint64_t total_data_dropped;
 
 };
 

@@ -12,7 +12,7 @@
 #define MAX_RECEIVED_MESSAGES_SIZE 50000000 //50 MB
 namespace echolib {
 
-inline SharedDictionary generate_error_command(long key, const std::string &message) {
+inline SharedDictionary generate_error_command(int64_t key, const std::string &message) {
 
     SharedDictionary command = generate_command(ECHO_COMMAND_ERROR);
     command->set<string>("error", message);
@@ -22,7 +22,7 @@ inline SharedDictionary generate_error_command(long key, const std::string &mess
 
 }
 
-inline SharedDictionary generate_confirm_command(long key) {
+inline SharedDictionary generate_confirm_command(int64_t key) {
 
     SharedDictionary command = generate_command(ECHO_COMMAND_OK);
     command->set<int>("key", key);
@@ -87,7 +87,7 @@ bool Channel::subscribe(SharedClientConnection client) {
 
         subscribers.insert(client);
         DEBUGMSG("Client FID=%d has subscribed to channel %d (%ld total)\n",
-                 client->get_file_descriptor(), get_identifier(), (long) subscribers.size());
+                 client->get_file_descriptor(), get_identifier(), (int64_t) subscribers.size());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
@@ -111,7 +111,7 @@ bool Channel::unsubscribe(SharedClientConnection client) {
 
         subscribers.erase(client);
         DEBUGMSG("Client FID=%d has unsubscribed from channel %d (%ld total)\n",
-                 client->get_file_descriptor(), get_identifier(), (long) subscribers.size());
+                 client->get_file_descriptor(), get_identifier(), (int64_t) subscribers.size());
 
         SharedDictionary status = generate_event_command(get_identifier());
         status->set<int>("subscribers", subscribers.size());
@@ -188,7 +188,7 @@ Router::~Router() {
 
 }
 
-string format_bytes(unsigned long b) {
+string format_bytes(uint64_t b) {
 
     string suffix = string("b");
 
@@ -319,7 +319,7 @@ SharedDictionary Router::handle_command(SharedClientConnection client, SharedDic
         return SharedDictionary();
     }
 
-    long key = command->get<int>("key", -1);
+    int key = command->get<int>("key", -1);
     switch (command->get<int>("code", -1)) {
     case ECHO_COMMAND_LOOKUP: {
         string channel_alias = command->get<string>("alias", "");

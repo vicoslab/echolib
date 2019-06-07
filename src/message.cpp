@@ -737,6 +737,8 @@ uchar* MemoryBuffer::get_buffer() const {
     return data;
 }
 
+MultiBufferMessage::MultiBufferMessage() : Message(), length(0) {}
+
 MultiBufferMessage::~MultiBufferMessage() {
 
 }

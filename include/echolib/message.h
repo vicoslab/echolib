@@ -171,7 +171,7 @@ public:
 
     template <class T> MultiBufferMessage(const T &buffers): MultiBufferMessage(buffers.begin(), buffers.end()) {}
 
-    template <class I> MultiBufferMessage(I begin, I end) : Message(), length(0) {
+    template <class I> MultiBufferMessage(I begin, I end) : MultiBufferMessage() {
 
         for (I it = begin; it != end; it++) {
             if ((*it)->get_length() < 1) continue;
@@ -189,6 +189,8 @@ public:
     virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const;
 
 private:
+
+    MultiBufferMessage();
 
     vector<SharedBuffer> buffers;
     vector<size_t> offsets;

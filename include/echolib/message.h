@@ -11,6 +11,7 @@
 #include <queue>
 #include <memory>
 #include <exception>
+#include <functional>
 #include <iostream>
 #include <type_traits>
 

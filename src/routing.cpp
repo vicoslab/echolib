@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <sys/socket.h>
 #include <iostream>
+#include <iomanip>
 #include <sys/un.h>
 
 #include "debug.h"
@@ -212,18 +213,27 @@ void Router::print_statistics() const {
 
     cout << clients.size() << " clients connected" <<  endl;
 
-    cout << "FID\tNAME\t\tOUT\tIN\tDROP" << endl;
+    size_t max_name = 4;
+
+    for (auto client : clients) {
+        max_name = std::max(max_name, client->get_name().size());
+    }
+
+    max_name += 2;
+
+    cout << setw(5) << "FID" << setw(max_name) << "NAME" << setw(8) << "OUT" << setw(8) << "IN" << setw(8) << "DROP" << endl;
 
     for (auto client : clients) {
         ClientStatistics stats = client->get_statistics();
 
         string name = client->get_name();
 
-        if (name.empty()) name = "\t";
+        if (name.empty()) name = "";
 
-        cout << client->get_file_descriptor() << "\t" << name << "\t" << format_bytes(stats.data_read) << "\t";
-
-        cout << format_bytes(stats.data_written) << "\t" << format_bytes(stats.data_dropped) << "\t";
+        cout << setw(5) << client->get_file_descriptor() << setw(max_name) << name
+             << setw(8) << format_bytes(stats.data_read) 
+             << setw(8) << format_bytes(stats.data_written) 
+             << setw(8) << format_bytes(stats.data_dropped);
 
         cout << endl;
     }

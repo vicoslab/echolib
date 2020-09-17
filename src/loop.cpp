@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <sys/epoll.h>
 #include <chrono>
+#include <algorithm>
 
 #include "debug.h"
 #include <echolib/loop.h>
@@ -29,6 +30,43 @@ IOLoop::~IOLoop() {
 
 }
 
+bool IOBase::observe(SharedIOBaseObserver observer) {
+
+    SYNCHRONIZED(mutex);
+
+    if (std::find(observers.begin(), observers.end(), observer) != observers.end())
+        return false;
+
+    observers.push_back(observer);
+
+    return true;
+
+}
+
+bool IOBase::unobserve(SharedIOBaseObserver observer) {
+
+    SYNCHRONIZED(mutex);
+
+    auto position = std::find(observers.begin(), observers.end(), observer);
+    if (position == observers.end())
+        return false;
+    else observers.erase(position);
+
+    return true;
+}
+
+void IOBase::notify_output() {
+
+    if (observers.size() > 0) {
+
+            SharedIOBase ref = std::dynamic_pointer_cast<IOBase>(shared_from_this());
+
+            for (auto it : observers) {
+                (*it).on_output(ref);
+            }
+        }
+}
+
 void IOLoop::add_handler(SharedIOBase base) {
 
 	int fd = base->get_file_descriptor();
@@ -39,7 +77,7 @@ void IOLoop::add_handler(SharedIOBase base) {
 
     struct epoll_event event;
     event.data.fd = fd;
-    event.events = EPOLLIN | EPOLLET | EPOLLOUT;
+    event.events = EPOLLIN;
     if (epoll_ctl (efd, EPOLL_CTL_ADD, fd, &event) == -1) {
         throw runtime_error("Unable to use epoll");
     }
@@ -100,18 +138,35 @@ bool IOLoop::wait(int64_t timeout) {
             if ((events[i].events & EPOLLERR) || (events[i].events & EPOLLHUP)) {
                 base->disconnect();
                 remove_handler(base);
-            } else {
-        		// TODO: handle timeout
-            	if (!base->handle_input()) {
-           			base->disconnect();
-                	remove_handler(base);
-            	}
+            } else if (events[i].events & EPOLLIN) {
+                // TODO: handle timeout
+                if (!base->handle_input()) {
+                    base->disconnect();
+                    remove_handler(base);
+                }
+            } else if (events[i].events & EPOLLOUT) {
+                struct epoll_event event;
+                event.data.fd = fd;
+                event.events = EPOLLOUT;
+                if (epoll_ctl (efd, EPOLL_CTL_DEL, event.data.fd, &event) == -1) {
+                    throw runtime_error("Error when removing epoll event");
+                }
             }
         }
 
         write_done = true;
         for (std::map<int, SharedIOBase>::iterator it = handlers.begin(); it != handlers.end(); it++) {
-            write_done &= it->second->handle_output();
+            bool done = it->second->handle_output();
+            if (!done) {
+                struct epoll_event event;
+                event.data.fd = it->second->get_file_descriptor();
+                event.events = EPOLLOUT;
+                if (epoll_ctl (efd, EPOLL_CTL_ADD, event.data.fd, &event) == -1) {
+                    if (errno != EEXIST)
+                        throw runtime_error("Error when adding epoll event");
+                }
+            }
+            write_done &= done;
         }
      
     }

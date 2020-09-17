@@ -104,12 +104,13 @@ public:
 
     virtual int get_file_descriptor();
 
+
 protected:
 
-    bool unsubscribe(int channel, DataCallback callback);
-    bool subscribe(int channel, DataCallback callback);
-    bool watch(int channel, WatchCallback callback);
-    bool unwatch(int channel, WatchCallback callback);
+    bool unsubscribe(int channel, const DataCallback &callback);
+    bool subscribe(int channel, const DataCallback &callback);
+    bool watch(int channel, const WatchCallback &callback);
+    bool unwatch(int channel, const WatchCallback &callback);
     void send(SharedMessage message, MessageCallback callback = NULL, int priority = 0);
     void lookup_channel(const string &alias, const string &type, function<void(SharedDictionary)> callback, bool create = true);
 
@@ -138,8 +139,6 @@ private:
     map<int, set<WatchCallback> > watches;
 
     map<string, string> mappings;
-
-    std::recursive_mutex mutex;
 
 };
 

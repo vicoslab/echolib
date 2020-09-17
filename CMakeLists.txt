@@ -13,8 +13,6 @@ option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_DEBUG "Enable debug output" OFF)
 option(BUILD_TESTS "Build tests" OFF)
 
-set(ECHO_PYTHON_VERSION "2" CACHE STRING "Python version to use for compiling python bindings")
-
 if (CMAKE_VERSION VERSION_LESS "3.1")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -41,7 +39,7 @@ add_library(echo SHARED
     src/message.cpp
     src/client.cpp
     src/server.cpp
-    src/routing.cpp    
+    src/routing.cpp
     src/datatypes.cpp
     src/debug.cpp
 )
@@ -59,7 +57,7 @@ install(FILES
     include/echolib/loop.h
     include/echolib/client.h
     include/echolib/server.h
-    include/echolib/routing.h    
+    include/echolib/routing.h
     include/echolib/message.h
     include/echolib/datatypes.h
     include/echolib/helpers.h
@@ -107,8 +105,8 @@ endif()
 # Python bindings
 if(BUILD_PYTHON)
     find_path(PYBIND11_INCLUDE_DIR pybind11/pybind11.h HINTS /usr/include DOC "PyBind11 include directory")
-    find_package(PythonInterp ${ECHOCV_PYTHON_VERSION} REQUIRED)
-    find_package(PythonLibs ${ECHOCV_PYTHON_VERSION} REQUIRED)
+    find_package(PythonInterp 3 REQUIRED)
+    find_package(PythonLibs 3 REQUIRED)
 
     add_library(pyecho SHARED src/python.cpp)
     target_link_libraries(pyecho echo ${PYTHON_LIBRARY})

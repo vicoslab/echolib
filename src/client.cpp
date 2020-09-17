@@ -11,6 +11,7 @@
 #include <cmath>
 #include <random>
 #include <chrono>
+#include <algorithm>
 #include <netinet/in.h>
 
 #include "debug.h"
@@ -19,9 +20,6 @@
 #include <echolib/datatypes.h>
 
 #define MAXEVENTS 8
-
-#define SYNCHRONIZED(M) std::lock_guard<std::recursive_mutex> lock (M)
-//#define SYNCHRONIZED(M)
 
 namespace echolib {
 
@@ -131,7 +129,6 @@ Client::Client(const string& name, const string &address) : fd(connect_socket(ad
     
         send_command(command);
     }
-
 
 }
 
@@ -271,7 +268,7 @@ void Client::handle_message(SharedMessage &message) {
 }
 
 
-bool Client::subscribe(int channel, DataCallback callback) {
+bool Client::subscribe(int channel, const DataCallback &callback) {
     SYNCHRONIZED(mutex);
 
     if (subscriptions.find(channel) == subscriptions.end()) {
@@ -290,7 +287,7 @@ bool Client::subscribe(int channel, DataCallback callback) {
 
 }
 
-bool Client::unsubscribe(int channel, DataCallback callback) {
+bool Client::unsubscribe(int channel, const DataCallback &callback) {
     SYNCHRONIZED(mutex);
 
     if (subscriptions.find(channel) == subscriptions.end()) {
@@ -322,7 +319,7 @@ bool Client::unsubscribe(int channel, DataCallback callback) {
     return true;
 }
 
-bool Client::watch(int channel, WatchCallback callback) {
+bool Client::watch(int channel, const WatchCallback &callback) {
     SYNCHRONIZED(mutex);
 
     if (watches.find(channel) == watches.end()) {
@@ -339,7 +336,7 @@ bool Client::watch(int channel, WatchCallback callback) {
     return watches[channel].insert(callback).second;  // Returns pair, the second value is success
 }
 
-bool Client::unwatch(int channel, WatchCallback callback) {
+bool Client::unwatch(int channel, const WatchCallback &callback) {
     SYNCHRONIZED(mutex);
 
     if (watches.find(channel) == watches.end()) {
@@ -377,8 +374,11 @@ void Client::send(SharedMessage message, MessageCallback callback, int priority)
 
     if (!is_connected()) return;
 
-    writer.add_message(message, priority, callback);
+    if (writer.add_message(message, priority, callback)) {
 
+        notify_output();
+
+    }
 }
 
 void Client::send_command(SharedDictionary command, function<bool(SharedDictionary, SharedDictionary)> callback) {

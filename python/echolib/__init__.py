@@ -3,6 +3,7 @@ from echolib.pyecho import *
 
 double = type('double', (), {})
 char = type('char', (), {})
+long = type('long', (), {})
 
 _type_registry = {}
 
@@ -20,15 +21,12 @@ def writeType(cls, writer, obj):
             raise Exception("Object type is not correct %s != %s" % (type(obj).__name__, cls.__name__))
         try:
             obj = _type_registry[cls.__name__]["convert"](obj)
-        except Exception, e:
+        except Exception as e:
             raise Exception("Unable to convert %s to %s: %s" % (type(obj).__name__, cls.__name__, e))
     _type_registry[cls.__name__]["write"](writer, obj)
 
 def convertInt(obj):
     return int(obj)
-
-def convertLong(obj):
-    return long(obj)
 
 def convertFloat(obj):
     return float(obj)
@@ -40,7 +38,7 @@ def convertBool(obj):
     return bool(obj)
 
 registerType(int, lambda x: x.readInt(), lambda x, o: x.writeInt(o), convertInt)
-registerType(long, lambda x: x.readLong(), lambda x, o: x.writeLong(o), convertLong)
+registerType(long, lambda x: x.readLong(), lambda x, o: x.writeLong(o), convertInt)
 registerType(float, lambda x: x.readFloat(), lambda x, o: x.writeFloat(o), convertFloat)
 registerType(str, lambda x: x.readString(), lambda x, o: x.writeString(o), convertStr)
 registerType(double, lambda x: x.readDouble(), lambda x, o: x.writeDouble(o), convertFloat)
@@ -70,16 +68,16 @@ class Dictionary(dict):
         super(Dictionary, self).__init__()
         if reader:
             n = reader.readInt()
-            for i in xrange(0, n):
+            for _ in range(0, n):
                 key = reader.readString()
                 value = reader.readString()
                 self[key] = value
 
     @staticmethod
     def read(reader):
-    	obj = Dictionary()
+        obj = Dictionary()
         n = reader.readInt()
-        for i in xrange(0, n):
+        for _ in range(0, n):
             key = reader.readString()
             value = reader.readString()
             obj[key] = value
@@ -125,7 +123,7 @@ class Dictionary(dict):
         return self.__dict__.has_key(k)
 
     def pop(self, key, default = None):
-        return self.__dict__.pop(k, d)
+        return self.__dict__.pop(key, default)
 
     def update(self, *args, **kwargs):
         return self.__dict__.update(*args, **kwargs)
@@ -139,20 +137,14 @@ class Dictionary(dict):
     def items(self):
         return self.__dict__.items()
 
-    def pop(self, *args):
-        return self.__dict__.pop(*args)
-
-    def __cmp__(self, dict):
-        return cmp(self.__dict__, dict)
+    def __cmp__(self, obj):
+        return cmp(self.__dict__, obj)
 
     def __contains__(self, item):
         return item in self.__dict__
 
     def __iter__(self):
         return iter(self.__dict__)
-
-    def __unicode__(self):
-        return unicode(repr(self.__dict__))
 
 registerType(Dictionary, Dictionary.read, Dictionary.write)
 
@@ -193,3 +185,23 @@ class DictionaryPublisher(Publisher):
         writer = MessageWriter()
         Dictionary.write(writer, obj)
         super(DictionaryPublisher, self).send(writer)
+
+class SubscriptionWatcher(Watcher):
+
+    def __init__(self, client, alias, callback, watch=True):
+        super(SubscriptionWatcher, self).__init__(client, alias)
+        self._callback = callback
+        if watch:
+            self.watch()
+
+    def on_event(self, message):
+        mtype = message.get("type", "")
+
+        if mtype == "subscribe" or mtype == "unsubscribe" or mtype == "summary":
+            try:
+                subscribers = int(message.get("subscribers", 0))
+            except ValueError:
+                subscribers = 0
+
+            if self._callback is not None:
+                self._callback(subscribers)

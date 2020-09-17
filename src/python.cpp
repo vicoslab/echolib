@@ -35,6 +35,67 @@ class PySubscriber : public Subscriber, public std::enable_shared_from_this<PySu
 
 };
 
+
+namespace pybind11 {
+namespace detail {
+
+#if PY_VERSION_HEX < 0x03000000
+#define MyPyText_AsString PyString_AsString
+#else
+#define MyPyText_AsString PyUnicode_AsUTF8
+#endif
+
+
+template <> class type_caster<SharedDictionary> {
+    typedef SharedDictionary type;
+public:
+    bool load(py::handle src, bool) {
+        py::gil_scoped_acquire gil;
+        if (!src || src.ptr() == Py_None || !PyDict_Check(src.ptr())) { return false; }
+        Py_ssize_t ppos = 0;
+        PyObject *pkey, *pvalue;
+        value = make_shared<Dictionary>();
+        while (PyDict_Next(src.ptr(), &ppos, &pkey, &pvalue))
+            value->set(MyPyText_AsString(pkey), MyPyText_AsString(pvalue));
+        return true;
+    }
+    static py::handle cast(const SharedDictionary &src, return_value_policy policy, py::handle parent) {
+        py::gil_scoped_acquire gil;
+        py::dict pydata;
+        for (DictionaryIterator it = src->begin(); it != src->end(); it++) {
+            pydata[py::str(it->first)] = py::str(it->second);
+        }
+        return py::handle(pydata);
+    }
+    PYBIND11_TYPE_CASTER(SharedDictionary, _("echolib::SharedDictionary"));
+};
+
+}
+}
+
+class PyIOBaseObserver : public IOBaseObserver {
+  public:
+    using IOBaseObserver::IOBaseObserver;
+
+    PyIOBaseObserver() {
+
+    }
+
+    ~PyIOBaseObserver() {
+
+    }
+
+    virtual void on_output(SharedIOBase client) override {
+        PYBIND11_OVERLOAD_PURE(
+            void,
+            IOBaseObserver,
+            on_output,
+            client
+        );
+    }
+};
+
+
 class PyWatcher : public Watcher {
   public:
     using Watcher::Watcher;
@@ -63,12 +124,13 @@ public:
 
     virtual bool handle_output() {
         PYBIND11_OVERLOAD_PURE(bool, IOBase, handle_output, );
-
     }
 
     virtual void disconnect() {
         PYBIND11_OVERLOAD_PURE(void, IOBase, disconnect, );
     }
+
+
 
 };
 
@@ -93,13 +155,14 @@ PYBIND11_MODULE(pyecho, m) {
     //py::module m("pyecho", "Echo IPC library Python bindings");
     m.doc() = "Echo IPC library Python bindings";
 
-
     py::class_<IOBase, PyIOBase, std::shared_ptr<IOBase> >(m, "IOBase")
     .def(py::init())
     .def("handle_input", &IOBase::handle_input, "Handle input messages")
     .def("handle_output", &IOBase::handle_output, "Handle output messages")
     .def("fd", &IOBase::get_file_descriptor, "Get access to low-level file descriptor")
-    .def("disconnect", &IOBase::disconnect, "Disconnect the client");
+    .def("disconnect", &IOBase::disconnect, "Disconnect the client")
+    .def("observe", &IOBase::observe, "Observe client for changes")
+    .def("unobserve", &IOBase::unobserve, "Stop observing client for changes");
 
     py::class_<IOLoop, std::shared_ptr<IOLoop> >(m, "IOLoop")
     .def(py::init())
@@ -131,14 +194,17 @@ PYBIND11_MODULE(pyecho, m) {
 
     py::class_<Watcher, PyWatcher, std::shared_ptr<Watcher> >(m, "Watcher")
     .def(py::init<SharedClient, string>())
-    .def("subscribe", [](PyWatcher &a) {
+    .def("watch", [](PyWatcher &a) {
         py::gil_scoped_release gil; // release GIL lock
         return a.watch();
-    }, "Start receiving")
-    .def("unsubscribe", [](PyWatcher &a) {
+    }, "Start watching")
+    .def("unwatch", [](PyWatcher &a) {
         py::gil_scoped_release gil; // release GIL lock
         return a.unwatch();
     }, "Stop watching");
+
+    py::class_<IOBaseObserver, PyIOBaseObserver, std::shared_ptr<IOBaseObserver> >(m, "IOBaseObserver")
+    .def(py::init());
 
     py::class_<Publisher, std::shared_ptr<Publisher> >(m, "Publisher")
     .def(py::init<SharedClient, string, string>())
@@ -183,6 +249,11 @@ PYBIND11_MODULE(pyecho, m) {
     .def("writeDouble", &MessageWriter::write_double, "Write a double")
     .def("writeString", &MessageWriter::write_string, "Write a string")
     .def("cloneData", &MessageWriter::clone_data, "Clone current data to message");
+/*
+    py::class_<Dictionary, std::shared_ptr<Dictionary> >(m, "Dictionary")
+    .def(py::init<Dictionary>())
+    .def("getShort", &Dictionary::get<short>, "Read a short");
+*/
 
     m.def("readTimestamp", &read_timestamp, "Read a timestamp from message");
     m.def("writeTimestamp", &write_timestamp, "Write a timestamp to message");

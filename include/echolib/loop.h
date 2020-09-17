@@ -8,12 +8,27 @@
 #include <vector>
 #include <utility>
 #include <memory>
+#include <mutex>
 
 #include <echolib/message.h>
+
+#define SYNCHRONIZED(M) std::lock_guard<std::recursive_mutex> lock (M)
 
 using namespace std;
 
 namespace echolib {
+
+class IOBase;
+typedef shared_ptr<IOBase> SharedIOBase;
+
+class IOBaseObserver {
+public:
+
+    virtual void on_output(SharedIOBase) = 0;
+
+};
+
+typedef std::shared_ptr<IOBaseObserver> SharedIOBaseObserver;
 
 class IOBase : public std::enable_shared_from_this<IOBase> {
 public:
@@ -27,9 +42,19 @@ public:
 
 	virtual void disconnect() = 0;
 
+    bool observe(SharedIOBaseObserver observer);
+    bool unobserve(SharedIOBaseObserver observer);
+
+protected:
+
+	void notify_output();
+
+    std::recursive_mutex mutex;
+
+private:
+    vector<SharedIOBaseObserver> observers;
 };
 
-typedef shared_ptr<IOBase> SharedIOBase;
 
 /*
 class IOBufferedBase : class IOBase {
@@ -65,7 +90,27 @@ public:
 
 private:
 
+	class IOLoopWriteObserver: public IOBaseObserver {
+	public:
+		IOLoopWriteObserver(IOLoop* context): context(context), flag(false) {};
+
+		~IOLoopWriteObserver() {};
+
+		virtual void on_output(SharedIOBase base);
+
+		void clear(SharedIOBase base);
+
+	private:
+
+		IOLoop* context;
+
+		bool flag;
+
+	};
+
 	map<int, SharedIOBase> handlers;
+
+	map<int, std::shared_ptr<IOLoopWriteObserver> > observers;
 
 	int efd;
 

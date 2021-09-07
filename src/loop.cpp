@@ -79,7 +79,7 @@ void IOLoop::add_handler(SharedIOBase base) {
     event.data.fd = fd;
     event.events = EPOLLIN;
     if (epoll_ctl (efd, EPOLL_CTL_ADD, fd, &event) == -1) {
-        throw runtime_error("Unable to use epoll");
+        throw runtime_error(format_string("Unable to use epoll (%d)", errno));
     }
 
 	handlers[fd] = base;
@@ -149,7 +149,7 @@ bool IOLoop::wait(int64_t timeout) {
                 event.data.fd = fd;
                 event.events = EPOLLOUT;
                 if (epoll_ctl (efd, EPOLL_CTL_DEL, event.data.fd, &event) == -1) {
-                    throw runtime_error("Error when removing epoll event");
+                    throw runtime_error(format_string("Error when removing an epoll event (%d)", errno));
                 }
             }
         }
@@ -163,7 +163,7 @@ bool IOLoop::wait(int64_t timeout) {
                 event.events = EPOLLOUT;
                 if (epoll_ctl (efd, EPOLL_CTL_ADD, event.data.fd, &event) == -1) {
                     if (errno != EEXIST)
-                        throw runtime_error("Error when adding epoll event");
+                        throw runtime_error(format_string("Error when adding an epoll event (%d)", errno));
                 }
             }
             write_done &= done;

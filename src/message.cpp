@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <malloc.h>
 #include <cmath>
+#include <cstdarg>
 
 #include "debug.h"
 #include <echolib/message.h>
@@ -32,6 +33,22 @@ public:
     using bounded_priority_queue::max_size;
 };
 
+std::string format_string(char const* fmt, ...) {
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    int length = vsnprintf(0, 0, fmt, ap);
+    
+    va_start(ap, fmt);
+    
+    char * text = (char*) malloc(sizeof(char) * length);
+    
+    vsnprintf(text, length, fmt, ap);
+    va_end(ap);
+    
+    return std::string(text);
+}
 
 const char* EndOfBufferException::what() const throw() {
     return "End of buffer";

@@ -217,13 +217,13 @@ private:
     
 };
 
+std::string format_string(char const* fmt, ...) __attribute__((format(printf,1,2)));
 
 class EndOfBufferException: public std::exception {
     virtual const char* what() const throw();
 };
 
 class ParseException: public std::exception {
-
 
 };
 

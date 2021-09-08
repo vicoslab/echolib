@@ -12,7 +12,7 @@
 
 using namespace std;
 
-#define MAXEVENTS 8
+#define MAXEVENTS 16
 
 namespace echolib {
 	
@@ -149,7 +149,7 @@ bool IOLoop::wait(int64_t timeout) {
                 event.data.fd = fd;
                 event.events = EPOLLOUT;
                 if (epoll_ctl (efd, EPOLL_CTL_DEL, event.data.fd, &event) == -1) {
-                    throw runtime_error(format_string("Error when removing an epoll event (%d)", errno));
+                    throw runtime_error(format_string("Error when removing an epoll FD %d (%d)", event.data.fd, errno));
                 }
             }
         }
@@ -162,8 +162,10 @@ bool IOLoop::wait(int64_t timeout) {
                 event.data.fd = it->second->get_file_descriptor();
                 event.events = EPOLLOUT;
                 if (epoll_ctl (efd, EPOLL_CTL_ADD, event.data.fd, &event) == -1) {
-                    if (errno != EEXIST)
-                        throw runtime_error(format_string("Error when adding an epoll event (%d)", errno));
+                    if (errno == EBADF)
+                        DEBUGMSG("Bad file descriptor, ignoring");
+                    else if (errno != EEXIST)
+                        throw runtime_error(format_string("Error when adding an epoll FD %d (%d)", event.data.fd, errno));
                 }
             }
             write_done &= done;

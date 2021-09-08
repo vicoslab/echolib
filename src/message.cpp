@@ -38,7 +38,7 @@ std::string format_string(char const* fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
 
-    int length = vsnprintf(0, 0, fmt, ap);
+    int length = vsnprintf(0, 0, fmt, ap) + 1;
     
     va_start(ap, fmt);
     
@@ -47,7 +47,11 @@ std::string format_string(char const* fmt, ...) {
     vsnprintf(text, length, fmt, ap);
     va_end(ap);
     
-    return std::string(text);
+    auto msg = std::string(text);
+
+    free(text);
+
+    return msg; 
 }
 
 const char* EndOfBufferException::what() const throw() {

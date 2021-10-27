@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <malloc.h>
 #include <cmath>
-#include <cstdarg>
 
 #include "debug.h"
 #include <echolib/message.h>
@@ -32,27 +31,6 @@ public:
     using bounded_priority_queue::size;
     using bounded_priority_queue::max_size;
 };
-
-std::string format_string(char const* fmt, ...) {
-
-    va_list ap;
-    va_start(ap, fmt);
-
-    int length = vsnprintf(0, 0, fmt, ap) + 1;
-    
-    va_start(ap, fmt);
-    
-    char * text = (char*) malloc(sizeof(char) * length);
-    
-    vsnprintf(text, length, fmt, ap);
-    va_end(ap);
-    
-    auto msg = std::string(text);
-
-    free(text);
-
-    return msg; 
-}
 
 const char* EndOfBufferException::what() const throw() {
     return "End of buffer";
@@ -150,6 +128,21 @@ std::string MessageReader::read_string() {
     return result;
 }
 
+void MessageReader::debug_peek(size_t position, size_t length) const {
+
+    length = min(message->get_length() - position, length);
+
+    if (length < 1) return;
+
+    uchar* temp = new uchar[length];
+
+    message->copy_data(position, temp, length);
+
+    for (size_t i = 0; i < length; i++) { std::cout << format_string(" %04d: (%#04X) %*d %c", (int) (i + position), temp[i], 4, temp[i], (int) temp[i]) << std::endl; }
+
+    delete [] temp;
+}
+
 size_t MessageReader::get_position() const {
     return position;
 }
@@ -164,7 +157,6 @@ void MessageReader::copy_data(uchar* buffer, size_t length) {
         length = message->get_length() - position;
 
     if (message->get_length() - position < length) {
-        cout << position << " " << length <<  " " << message->get_length() << endl;
         throw EndOfBufferException();
     }
 
@@ -760,7 +752,27 @@ uchar* MemoryBuffer::get_buffer() const {
 
 MultiBufferMessage::MultiBufferMessage() : Message(), length(0) {}
 
+MultiBufferMessage::MultiBufferMessage(any_container<SharedBuffer> buffers): buffers(*buffers) { rebuild(); }
+
+
 MultiBufferMessage::~MultiBufferMessage() {
+
+}
+
+void MultiBufferMessage::rebuild() {
+
+    offsets = vector<size_t>();
+    length = 0;
+
+    for (vector<SharedBuffer>::iterator it = buffers.begin(); it != buffers.end(); ) {
+        if ((*it)->get_length() < 1) {
+            buffers.erase(it);
+            continue;
+        } 
+        offsets.push_back(length);
+        length += (*it)->get_length();
+        it++;
+    }
 
 }
 

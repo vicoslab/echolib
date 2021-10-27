@@ -6,9 +6,12 @@
 #include <pybind11/stl.h>
 #include <pybind11/functional.h>
 #include <pybind11/chrono.h>
+#include <pybind11/numpy.h>
 
 #include <echolib/datatypes.h>
 #include <echolib/client.h>
+#include <echolib/routing.h>
+#include <echolib/array.h>
 
 using namespace echolib;
 namespace py = pybind11;
@@ -69,6 +72,152 @@ public:
     }
     PYBIND11_TYPE_CASTER(SharedDictionary, _("echolib::SharedDictionary"));
 };
+
+
+
+template <> class type_caster<SharedTensor> {
+    typedef SharedTensor type;
+public:
+    bool load(py::handle src, bool) {
+        
+        py::array a = py::array::ensure(src);
+
+        if (!a) return false;
+
+        auto capsule = py::reinterpret_borrow<py::capsule>(a.base());
+
+        if (!capsule) {
+
+            std::vector<size_t> dimensions, strides;
+
+            for (int i = 0; i < a.ndim(); i++) {
+                dimensions.push_back(static_cast<size_t>(a.shape(i)));
+            }
+
+            const auto pyarray_dtype = a.dtype();
+            DataType type;
+            if (pyarray_dtype.is(pybind11::dtype::of<uint8_t>())) {
+	            type = UINT8;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<int8_t>())) {
+                type = INT8;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<uint16_t>())) {
+	            type = UINT16;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<int16_t>())) {
+                type = INT16;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<uint32_t>())) {
+	            type = UINT32;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<int32_t>())) {
+                type = INT32;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<float>())) {
+	            type = FLOAT32;
+            } else if (pyarray_dtype.is(pybind11::dtype::of<double>())) {
+                type = FLOAT64;
+            } else {
+                return false;
+            }
+
+            bool continious = true;
+            ssize_t stride = Tensor::get_type_bytes(type);
+
+            for (ssize_t i = a.ndim() - 1; i >= 0; i--) {
+
+               // std::cout << i << ":" << stride << " " << a.strides(i) << std::endl;
+
+                if (stride != a.strides(i)) {
+                    continious = false;
+                    break;
+                }
+
+                stride = static_cast<ssize_t>(dimensions[i]) * stride;
+
+            } 
+
+            py::handle reservation(a);
+            reservation.inc_ref();
+
+            if (continious) {
+                value = std::make_shared<Tensor>(dimensions, type, (uchar *) a.data(), [reservation](){ reservation.dec_ref(); });
+            } else {
+                return false;
+            }
+            
+        } else {
+
+            auto ref = static_cast<SharedTensor*>(capsule);
+
+            
+            value = SharedTensor(*ref);
+
+            //std::cout << "Capsule " << (ref) << " " << (void *) value->get_data() << std::endl;
+        }
+        
+        return true;
+    }
+    static py::handle cast(const SharedTensor &src, return_value_policy policy, py::handle parent) {
+        py::gil_scoped_acquire gil;
+
+        auto v = new SharedTensor(src);
+        // TODO: add capsule name
+        auto capsule = py::capsule((void *) v, [](void *v) { 
+           // std::cout << "Free py " << (static_cast<SharedTensor*>(v)[0]) << std::endl;
+
+            delete static_cast<SharedTensor*>(v);             
+        });
+
+        std::vector<ssize_t> dimensions(src->ndims(), 0);
+
+        for (size_t i = 0; i < src->ndims(); i++) {
+            dimensions[i] = static_cast<ssize_t>(src->shape(i));
+        }
+
+        py::array result;
+
+        switch (src->get_type()) {
+            case UINT8: {
+                result = py::array(std::move(dimensions), {}, (uint8_t *) src->get_data(), capsule);
+                break;
+            }
+            case INT8: {
+                result = py::array(std::move(dimensions), {}, (int8_t *) src->get_data(), capsule);
+                break;
+            }
+            case UINT16: {
+                result = py::array(std::move(dimensions), {}, (uint16_t *) src->get_data(), capsule);
+                break;
+            }
+            case INT16: {
+                result = py::array(std::move(dimensions), {}, (int16_t *) src->get_data(), capsule);
+                break;
+            }
+            case UINT32: {
+                result = py::array(std::move(dimensions), {}, (uint32_t *) src->get_data(), capsule);
+                break;
+            }
+            case INT32: {
+                result = py::array(std::move(dimensions), {}, (int32_t *) src->get_data(), capsule);
+                break;
+            }
+            case FLOAT32: {
+                result = py::array(std::move(dimensions), {}, (float_t *) src->get_data(), capsule);
+                break;
+            }
+            case FLOAT64: {
+               result = py::array(std::move(dimensions), {}, (double_t *) src->get_data(), capsule);
+               break;
+            }
+            default: {
+                return py::none(); 
+            }
+
+        }
+  
+        result.inc_ref();
+        return result;
+
+    }
+    PYBIND11_TYPE_CASTER(SharedTensor, _("SharedTensor"));
+};
+
 
 }
 }
@@ -150,6 +299,36 @@ std::chrono::system_clock::time_point read_timestamp(MessageReader& reader) {
 
 }
 
+void router(string address, bool verbose = false) {
+
+    SharedIOLoop loop = make_shared<IOLoop>();
+
+    shared_ptr<Router> router = make_shared<Router>(loop, address);
+    loop->add_handler(router);
+
+    int counter = 50;
+
+    while (true) {
+
+        {
+            py::gil_scoped_release gil; 
+            loop->wait(100);
+        }
+
+        if (PyErr_CheckSignals() != 0)
+            throw py::error_already_set();
+
+        if (verbose && (counter--) == 0) {
+            counter = 50;
+            cout << " --------------------------- Router statistics --------------------------------- " <<  endl;
+            router->print_statistics();
+        }
+
+    }
+
+}
+
+
 PYBIND11_MODULE(pyecho, m) {
 
     //py::module m("pyecho", "Echo IPC library Python bindings");
@@ -169,8 +348,19 @@ PYBIND11_MODULE(pyecho, m) {
     .def("add_handler", &IOLoop::add_handler, "Register handler")
     .def("remove_handler", &IOLoop::remove_handler, "Unregister handler")
     .def("wait", [](IOLoop& c, long timeout) {
-        py::gil_scoped_release gil; // release GIL lock
-        return c.wait(timeout);
+        if (timeout < 1) {
+            while (true) {
+                {
+                    py::gil_scoped_release gil; 
+                    c.wait(100);
+                }
+                if (PyErr_CheckSignals() != 0)
+                    throw py::error_already_set();
+            }
+        } else {
+            py::gil_scoped_release gil; // release GIL lock
+            return c.wait(timeout);
+        }
     }, "Wait for more messages");
 
     py::class_<Client, IOBase, std::shared_ptr<Client> >(m, "Client")
@@ -249,13 +439,16 @@ PYBIND11_MODULE(pyecho, m) {
     .def("writeDouble", &MessageWriter::write_double, "Write a double")
     .def("writeString", &MessageWriter::write_string, "Write a string")
     .def("cloneData", &MessageWriter::clone_data, "Clone current data to message");
-/*
-    py::class_<Dictionary, std::shared_ptr<Dictionary> >(m, "Dictionary")
-    .def(py::init<Dictionary>())
-    .def("getShort", &Dictionary::get<short>, "Read a short");
-*/
 
     m.def("readTimestamp", &read_timestamp, "Read a timestamp from message");
     m.def("writeTimestamp", &write_timestamp, "Write a timestamp to message");
+
+    m.def("readArray", [](MessageReader& reader) { SharedArray array; read(reader, array); return array; }, "Read an array from message");
+    m.def("writeArray", [](MessageWriter& writer, const SharedArray &array ) { write(writer, array); }, "Write an array to message");
+
+    m.def("readTensor", [](MessageReader& reader) { SharedTensor tensor; read(reader, tensor); return tensor; }, "Read a tensor from message");
+    m.def("writeTensor", [](MessageWriter& writer, const SharedTensor &tensor ) { write(writer, tensor); }, "Write a tensor to message");
+
+    m.def("router", &router, "Run a routing daemon (blocking)");
 
 }

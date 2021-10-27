@@ -719,11 +719,10 @@ bool Publisher::send_message_internal(SharedMessage message) {
 
             size_t clen = min(length - position, (size_t) chunk_size);
 
-            vector<SharedBuffer> buffers;
-            buffers.push_back(header);
-            buffers.push_back(make_shared<ProxyBuffer>(message, position, clen));
-
-            shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(buffers);
+            shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(initializer_list<SharedBuffer>{
+                header,
+                make_shared<ProxyBuffer>(message, position, clen)
+            });
             MessageHandler::set_channel(chunk, get_channel_id());
 
             if (i + 1 == chunks) {
@@ -742,11 +741,10 @@ bool Publisher::send_message_internal(SharedMessage message) {
         MessageWriter writer(header->get_buffer(), header->get_length());
         writer.write_integer(-1); // Negative number denotes a single chunk message
 
-        vector<SharedBuffer> buffers;
-        buffers.push_back(header);
-        buffers.push_back(message);
-
-        shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(buffers);
+        shared_ptr<Message> chunk = make_shared<MultiBufferMessage>(initializer_list<SharedBuffer>{
+            header,
+            message
+        });
 
         MessageHandler::set_channel(chunk, get_channel_id());
 

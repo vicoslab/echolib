@@ -43,6 +43,48 @@ using namespace std;
 
 namespace echolib {
 
+template <bool B, typename T = void> using enable_if_t = typename std::enable_if<B, T>::type;
+
+template <typename T, typename = void> struct is_input_iterator : std::false_type {};
+template <typename T>
+struct is_input_iterator<T, void_t<decltype(*std::declval<T &>()), decltype(++std::declval<T &>())>>
+    : std::true_type {};
+
+template <typename T>
+class any_container {
+    std::vector<T> v;
+public:
+    any_container() = default;
+
+    // Can construct from a pair of iterators
+    template <typename It, typename = enable_if_t<is_input_iterator<It>::value>>
+    any_container(It first, It last) : v(first, last) { }
+
+    // Implicit conversion constructor from any arbitrary container type with values convertible to T
+    template <typename Container, typename = enable_if_t<std::is_convertible<decltype(*std::begin(std::declval<const Container &>())), T>::value>>
+    any_container(const Container &c) : any_container(std::begin(c), std::end(c)) { }
+
+    // initializer_list's aren't deducible, so don't get matched by the above template; we need this
+    // to explicitly allow implicit conversion from one:
+    template <typename TIn, typename = enable_if_t<std::is_convertible<TIn, T>::value>>
+    any_container(const std::initializer_list<TIn> &c) : any_container(c.begin(), c.end()) { }
+
+    // Avoid copying if given an rvalue vector of the correct type.
+    any_container(std::vector<T> &&v) : v(std::move(v)) { }
+
+    // Moves the vector out of an rvalue any_container
+    operator std::vector<T> &&() && { return std::move(v); }
+
+    // Dereferencing obtains a reference to the underlying vector
+    std::vector<T> &operator*() { return v; }
+    const std::vector<T> &operator*() const { return v; }
+
+    // -> lets you call methods on the underlying vector
+    std::vector<T> *operator->() { return &v; }
+    const std::vector<T> *operator->() const { return &v; }
+
+};
+
 class StreamReader;
 class StreamWriter;
 
@@ -170,18 +212,9 @@ private:
 class MultiBufferMessage : public Message {
 public:
 
-    template <class T> MultiBufferMessage(const T &buffers): MultiBufferMessage(buffers.begin(), buffers.end()) {}
+    MultiBufferMessage(any_container<SharedBuffer> buffers);
 
-    template <class I> MultiBufferMessage(I begin, I end) : MultiBufferMessage() {
-
-        for (I it = begin; it != end; it++) {
-            if ((*it)->get_length() < 1) continue;
-            this->buffers.push_back(*it);
-            this->offsets.push_back(length);
-            length += (*it)->get_length();
-        }
-
-    }
+    template <class I> MultiBufferMessage(I begin, I end) : buffers(begin, end) { rebuild(); }
 
     virtual ~MultiBufferMessage();
 
@@ -191,12 +224,91 @@ public:
 
 private:
 
+    void rebuild();
+
     MultiBufferMessage();
 
     vector<SharedBuffer> buffers;
     vector<size_t> offsets;
     size_t length;
 
+};
+
+template<class T>
+class PrimitiveBuffer : public Buffer {
+public:
+    static_assert(std::is_fundamental<T>::value, "Only fundamental types allowed");
+
+    PrimitiveBuffer(const T value) : value(value) { }
+
+    virtual ~PrimitiveBuffer() { }
+
+    virtual size_t get_length() const { return sizeof(T); }
+
+    virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const {
+
+        length = min(length, sizeof(T) - position);
+        if (length < 1) {
+            return 0;
+        } 
+
+        memcpy(buffer, (void *) &(((uchar *) &(value))[position]), length);
+
+        return length;
+    }
+
+    static SharedBuffer wrap(const T value) {
+        return SharedBuffer(new PrimitiveBuffer<T>(value));
+    }
+
+private:
+
+    T value;
+    
+};
+
+template<class T>
+class ListBuffer : public Buffer {
+public:
+    static_assert(std::is_fundamental<T>::value, "Only fundamental types allowed");
+
+    ListBuffer(const any_container<T> value) : value(*value) { }
+
+    virtual ~ListBuffer() { }
+
+    virtual size_t get_length() const { return sizeof(size_t) + sizeof(T) * value.size(); }
+
+    virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const {
+
+        length = min(length, get_length() - position);
+        if (length < 1) return 0;
+
+        size_t plength = 0;
+
+        if (position < sizeof(size_t)) {
+            size_t size = value.size();
+            plength = min(sizeof(size_t) - position, length);
+            memcpy(buffer, (void *) &(((uchar *) &(size))[position]), plength);
+            position = 0;
+            length -= plength;
+            buffer += plength;
+
+            if (length < 1) return plength;
+        } else {
+            position -= sizeof(size_t);
+        }
+
+        memcpy(buffer, (void *) &(((uchar *) &(value[0]))[position]), length);
+
+        return length + plength;
+    }
+
+    static SharedBuffer wrap(const any_container<T> value) { return SharedBuffer(new ListBuffer<T>(value)); }
+
+private:
+
+    std::vector<T> value;
+    
 };
 
 class OffsetBufferMessage : public Message {
@@ -216,8 +328,6 @@ private:
     size_t offset;
     
 };
-
-std::string format_string(char const* fmt, ...) __attribute__((format(printf,1,2)));
 
 class EndOfBufferException: public std::exception {
     virtual const char* what() const throw();
@@ -288,6 +398,8 @@ public:
     size_t get_length() const;
 
     void copy_data(uchar* buffer, size_t length = 0);
+
+    void debug_peek(size_t position, size_t length) const;
 
 private:
 

@@ -1,11 +1,24 @@
 
-from echolib.pyecho import *
+try:
+    import echolib.pyecho as _echo
+except ImportError as ie:
+    raise ImportError("Echo binary library not found", ie)
+
+IOLoop = _echo.IOLoop
+Client = _echo.Client
+Publisher = _echo.Publisher
+Subscriber = _echo.Subscriber
+MessageReader = _echo.MessageReader
+MessageWriter = _echo.MessageWriter
 
 double = type('double', (), {})
 char = type('char', (), {})
 long = type('long', (), {})
 
 _type_registry = {}
+
+def router(address="/tmp/echo.sock", verbose=False):
+    _echo.router(address, verbose)
 
 def registerType(cls, read, write, convert=None):
     if cls.__name__ in _type_registry:
@@ -47,7 +60,7 @@ registerType(bool, lambda x: x.readBool(), lambda x, o: x.writeBool(o), convertB
 
 import datetime
 
-registerType(datetime.datetime, readTimestamp, writeTimestamp)
+registerType(datetime.datetime, _echo.readTimestamp, _echo.writeTimestamp)
 
 def readList(cls, reader):
     objects = []
@@ -64,8 +77,9 @@ def writeList(cls, writer, objects):
         write(writer, o)
 
 class Dictionary(dict):
+
     def __init__(self, reader=None):
-        super(Dictionary, self).__init__()
+        super().__init__()
         if reader:
             n = reader.readInt()
             for _ in range(0, n):
@@ -91,7 +105,7 @@ class Dictionary(dict):
             writer.writeString(str(v))
 
     def pack(self):
-        writer = echolib.pyecho.MessageWriter(4 + sum([ len(k) + len(v) + 8 for k, v in self.items()]))
+        writer = _echo.MessageWriter(4 + sum([ len(k) + len(v) + 8 for k, v in self.items()]))
         self.write(writer)
         return writer
 
@@ -137,9 +151,6 @@ class Dictionary(dict):
     def items(self):
         return self.__dict__.items()
 
-    def __cmp__(self, obj):
-        return cmp(self.__dict__, obj)
-
     def __contains__(self, item):
         return item in self.__dict__
 
@@ -167,29 +178,29 @@ class Header(object):
 
 registerType(Header, Header.read, Header.write)
 
-class DictionarySubscriber(Subscriber):
+class DictionarySubscriber(_echo.Subscriber):
 
     def __init__(self, client, alias, callback):
         def _read(message):
-            reader = MessageReader(message)
+            reader = _echo.MessageReader(message)
             return Dictionary.read(reader)
 
-        super(DictionarySubscriber, self).__init__(client, alias, "dictionary", lambda x: callback(_read(x)))
+        super().__init__(client, alias, "dictionary", lambda x: callback(_read(x)))
 
-class DictionaryPublisher(Publisher):
+class DictionaryPublisher(_echo.Publisher):
 
     def __init__(self, client, alias):
-        super(DictionaryPublisher, self).__init__(client, alias, "dictionary")
+        super().__init__(client, alias, "dictionary")
 
     def send(self, obj):
-        writer = MessageWriter()
+        writer = _echo.MessageWriter()
         Dictionary.write(writer, obj)
-        super(DictionaryPublisher, self).send(writer)
+        super().send(writer)
 
-class SubscriptionWatcher(Watcher):
+class SubscriptionWatcher(_echo.Watcher):
 
     def __init__(self, client, alias, callback, watch=True):
-        super(SubscriptionWatcher, self).__init__(client, alias)
+        super().__init__(client, alias)
         self._callback = callback
         if watch:
             self.watch()

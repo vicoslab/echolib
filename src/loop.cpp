@@ -162,10 +162,11 @@ bool IOLoop::wait(int64_t timeout) {
                 event.data.fd = it->second->get_file_descriptor();
                 event.events = EPOLLOUT;
                 if (epoll_ctl (efd, EPOLL_CTL_ADD, event.data.fd, &event) == -1) {
-                    if (errno == EBADF)
+                    if (errno == EBADF) {
                         DEBUGMSG("Bad file descriptor, ignoring");
-                    else if (errno != EEXIST)
+                    } else if (errno != EEXIST) {
                         throw runtime_error(format_string("Error when adding an epoll FD %d (%d)", event.data.fd, errno));
+                    }
                 }
             }
             write_done &= done;

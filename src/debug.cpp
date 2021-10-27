@@ -3,6 +3,8 @@
 #include <time.h>
 #include <string.h>
 #include <stdio.h>
+#include <iostream>
+#include <cstdarg>
 #include "debug.h"
 
 using namespace std;
@@ -80,5 +82,34 @@ const char* __short_file_name(const char* filename) {
     }
 
     return &(filename[position]);
+}
+
+std::string format_string(char const* fmt, ...) {
+
+    va_list ap;
+    va_start(ap, fmt);
+
+    int length = vsnprintf(0, 0, fmt, ap) + 1;
+    
+    va_start(ap, fmt);
+    
+    char * text = (char*) malloc(sizeof(char) * length);
+    
+    vsnprintf(text, length, fmt, ap);
+    va_end(ap);
+    
+    auto msg = std::string(text);
+
+    free(text);
+
+    return msg; 
+}
+
+void print_buffer(uint8_t* buffer, size_t length) {
+
+    for (size_t i = 0; i < length; i++) { 
+        std::cout << format_string(" %04d: (%#04X) %*d %c", (int) (i), buffer[i], 4, buffer[i], (int) buffer[i]) << std::endl; 
+    }
+
 }
 

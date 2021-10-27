@@ -4,10 +4,11 @@ A simple and efficient interprocess communication (IPC) library for Linux writte
 
 ## Contributors ##
 
+ * Luka Čehovin Zajc (developer, maintainer)
+ * Rok Mandeljc (contributor)
  * Urban Škvorc (initial developer)
- * Luka Čehovin (developer, maintainer)
 
 ## Installation ##
 
-The C++ library does not have any dependencies apart from a C++11 capable compiler, but if you want to compile Python bindings you have to download the [pybind11](https://github.com/wjakob/pybind11) template library.
+The C++ library does not have any dependencies apart from a C++11 capable compiler, but if you want to compile Python bindings you have to download the [pybind11](https://github.com/pybind/pybind11) template library. To use Python wrapper, numpy is required. Some other Python packages are required for message file generation. Optional support is provided for OpenCV images and camera access.
 

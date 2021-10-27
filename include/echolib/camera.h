@@ -21,44 +21,11 @@ typedef struct Frame {
     SharedTensor image;
 } Frame;
 
-/*
-template<typename T, int m, int n> void write(MessageWriter& writer, const Matx<T, m, n>& src) {
-    
-    assert(m == src.rows && n == src.cols);
-
-    writer.write<ushort>(src.rows);
-    writer.write<ushort>(src.cols);
-    writer.write<int>(CV_MAKETYPE(DataType<T>::depth, 1));
-
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            writer.write<T>(src(i, j));
-        }
-    }
-
-}
-
-template<typename T, int m, int n> void read(MessageReader& reader, Matx<T, m, n>& dst) {
-    
-    ushort h = reader.read<ushort>();
-    ushort w = reader.read<ushort>();
-    int t = reader.read<int>();
-
-    assert(m == h && n == w && t == CV_MAKETYPE(DataType<T>::depth, 1));
-
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            dst(i, j) = reader.read<T>();
-        }
-    }
-
-}*/
-
 template <> inline string get_type_identifier<CameraExtrinsics>() { return string("camera extrinsics"); }
 
 template<> inline shared_ptr<Message> echolib::Message::pack<CameraExtrinsics>(const CameraExtrinsics &data)
 {
-    MessageWriter writer(12 * sizeof(float));
+    MessageWriter writer;
 
     write(writer, data.header);
     write(writer, data.rotation);
@@ -82,7 +49,7 @@ template <> inline string get_type_identifier<CameraIntrinsics>() { return strin
 
 template<> inline shared_ptr<Message> echolib::Message::pack<CameraIntrinsics>(const CameraIntrinsics &data)
 {
-    MessageWriter writer(12 * sizeof(float));
+    MessageWriter writer;
 
     writer.write<int>(data.width);
     writer.write<int>(data.height);

@@ -29,7 +29,6 @@ Array::~Array() {
     if (callback) {
         callback();
     } else {
-        //std::cout << "Free arr " << this << " " << (void *) data << std::endl;
         if (data) free(data);
     }
 
@@ -247,9 +246,5 @@ size_t ArrayBuffer::copy_data(size_t position, uchar* buffer, size_t length) con
     memcpy(buffer, &(array->get_data()[position]), length);
     return length;
 }
-/*
-Frame::Frame(Header header, Mat image): header(header), image(image) {}
 
-Frame::~Frame() {}
-*/
 }

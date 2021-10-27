@@ -159,8 +159,6 @@ public:
         auto v = new SharedTensor(src);
         // TODO: add capsule name
         auto capsule = py::capsule((void *) v, [](void *v) { 
-           // std::cout << "Free py " << (static_cast<SharedTensor*>(v)[0]) << std::endl;
-
             delete static_cast<SharedTensor*>(v);             
         });
 

@@ -427,11 +427,10 @@ template<> inline void read(MessageReader& reader, string& dst) {
 }
 
 template<typename T> void read(MessageReader& reader, vector<T>& dst) {
-    int n = reader.read<int>();
+    size_t n = reader.read<size_t>();
     dst.resize(n);
-    for (size_t i = 0; i < n; i++) {
+    for (size_t i = 0; i < n; i++) 
         read(reader, dst[i]);
-    }
 }
 
 class MessageWriter {

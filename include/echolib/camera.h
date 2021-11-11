@@ -76,14 +76,9 @@ template <> inline string get_type_identifier<Frame>() { return string("camera f
 
 template<> inline shared_ptr<Message> echolib::Message::pack<Frame>(const Frame &data) {
 
-    MessageWriter writer;
-    write(writer, data.header);
-
     return make_shared<MultiBufferMessage>(initializer_list<SharedBuffer>{
-        make_shared<BufferedMessage>(writer),
-        ListBuffer<size_t>::wrap(data.image->dims()),
-        PrimitiveBuffer<uint8_t>::wrap((uint8_t)data.image->get_type()),
-        make_shared<ArrayBuffer>(data.image)
+        pack<Header>(data.header),
+        pack<SharedTensor>(data.image)
     });
 
 }

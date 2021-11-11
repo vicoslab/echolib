@@ -64,17 +64,19 @@ class TypedPublisher : Publisher {
 template<typename T> using SharedTypedSubscriber = shared_ptr<TypedSubscriber<T> >;
 template<typename T> using SharedTypedPublisher = shared_ptr<TypedPublisher<T> >;
 
+typedef std::chrono::system_clock::time_point time_point;
+
 template <> 
-inline void read(MessageReader& reader, std::chrono::system_clock::time_point& timepoint) {
+inline void read(MessageReader& reader, time_point& timepoint) {
     
     std::chrono::microseconds raw((uint64_t) reader.read_long());
 
-    timepoint = std::chrono::system_clock::time_point(raw);
+    timepoint = time_point(raw);
 
 }
 
 template <> 
-inline void write(MessageWriter& writer, const std::chrono::system_clock::time_point& timepoint) {
+inline void write(MessageWriter& writer, const time_point& timepoint) {
 
     uint64_t microseconds = std::chrono::time_point_cast<std::chrono::microseconds>(timepoint).time_since_epoch().count();
 
@@ -84,7 +86,7 @@ inline void write(MessageWriter& writer, const std::chrono::system_clock::time_p
 
 class Header {
 public:
-    Header(std::string source = "", std::chrono::system_clock::time_point timestamp = std::chrono::system_clock::now());
+    Header(std::string source = "", time_point timestamp = std::chrono::system_clock::now());
     virtual ~Header();
 
     std::string source;
@@ -135,6 +137,30 @@ inline shared_ptr<Message> Message::pack(const Dictionary &data) {
 
     return make_shared<BufferedMessage>(writer);
 }
+
+template<>
+inline shared_ptr<Header> Message::unpack(SharedMessage message) {
+
+    MessageReader reader(message);
+
+    shared_ptr<echolib::Header> header(new echolib::Header);
+
+    read(reader, *header);
+
+    return header;
+}
+
+template<>
+inline shared_ptr<Message> Message::pack(const Header &data) {
+
+    MessageWriter writer(sizeof(size_t) + data.source.size() + sizeof(time_point));
+
+    write(writer, data.source);
+    write(writer, data.timestamp);
+
+    return make_shared<BufferedMessage>(writer);
+}
+
 
 
 }

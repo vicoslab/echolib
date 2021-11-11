@@ -183,7 +183,6 @@ if(BUILD_EXAMPLES)
     target_link_libraries(chunked echo)
 endif()
 
-
 # Examples
 if(BUILD_TESTS)
     add_executable(deadend src/tests/deadend.cpp)

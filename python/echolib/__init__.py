@@ -5,6 +5,7 @@ except ImportError as ie:
     raise ImportError("Echo binary library not found", ie)
 
 IOLoop = _echo.IOLoop
+IOBase = _echo.IOBase
 Client = _echo.Client
 Publisher = _echo.Publisher
 Subscriber = _echo.Subscriber

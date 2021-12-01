@@ -8,7 +8,7 @@ include(GNUInstallDirs)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
 option(BUILD_APPS "Build echolib apps" ON)
-option(BUILD_PYTHON "Build python bindings" ON)
+option(BUILD_PYTHON "Build python wrapper" ON)
 option(BUILD_EXAMPLES "Build examples" OFF)
 option(BUILD_DEBUG "Enable debug output" OFF)
 option(BUILD_TESTS "Build tests" OFF)
@@ -22,10 +22,10 @@ endif()
 
 if (CMAKE_VERSION VERSION_LESS "3.1")
     if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++17")
     endif ()
 else ()
-    set (CMAKE_CXX_STANDARD 11)
+    set (CMAKE_CXX_STANDARD 17)
 endif ()
 
 if(CMAKE_COMPILER_IS_GNUCXX)
@@ -130,24 +130,39 @@ endif()
 
 # Python bindings
 if(BUILD_PYTHON)
-    find_path(PYBIND11_INCLUDE_DIR pybind11/pybind11.h HINTS /usr/include DOC "PyBind11 include directory")
-    find_package(PythonInterp 3 REQUIRED)
-    find_package(PythonLibs 3 REQUIRED)
+    option(BUILD_PYTHON_SOURCE "Build python source package" OFF)
+
+    ADD_CUSTOM_TARGET(copy_library_python ALL)
 
     SET(BUILD_PYTHON_DIR "${CMAKE_BINARY_DIR}/python")
     FILE(MAKE_DIRECTORY ${BUILD_PYTHON_DIR}/echolib)
 
+    IF(BUILD_PYTHON_SOURCE)
+        FILE(MAKE_DIRECTORY ${BUILD_PYTHON_DIR}/echolib/echolib)
 
-    add_library(pyecho SHARED src/python/wrapper.cpp ${ECHO_SRC})
-    #target_link_libraries(pyecho echo_static ${PYTHON_LIBRARY})
-    set_target_properties(pyecho PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${BUILD_PYTHON_DIR}/echolib)
-    set_target_properties(pyecho PROPERTIES PREFIX "")
-    target_include_directories(pyecho PRIVATE ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR})
+        ADD_CUSTOM_COMMAND(TARGET copy_library_python COMMAND 
+            ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} 
+            ${CMAKE_COMMAND} -E copy ${ECHO_SRC} src/python/wrapper.cpp src/algorithms.h src/debug.h
+            ${BUILD_PYTHON_DIR}/echolib/echolib)
+        ADD_CUSTOM_COMMAND(TARGET copy_library_python COMMAND ${CMAKE_COMMAND} -E chdir ${CMAKE_SOURCE_DIR} ${CMAKE_COMMAND} -E copy ${ECHO_HEADERS} ${BUILD_PYTHON_DIR}/echolib/echolib)
+
+    ELSE()
+
+        find_path(PYBIND11_INCLUDE_DIR pybind11/pybind11.h HINTS /usr/include DOC "PyBind11 include directory")
+        find_package(PythonInterp 3 REQUIRED)
+        find_package(PythonLibs 3 REQUIRED)
+
+        add_library(pyecho SHARED src/python/wrapper.cpp ${ECHO_SRC})
+        set_target_properties(pyecho PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${BUILD_PYTHON_DIR}/echolib)
+        set_target_properties(pyecho PROPERTIES PREFIX "")
+        target_include_directories(pyecho PRIVATE ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR})
+
+    ENDIF()
 
     # Determine installation path
-    execute_process(COMMAND
-        ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
-        OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+    #execute_process(COMMAND
+    #    ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
+    #    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
     SET(SOURCES_PY 
         ${CMAKE_CURRENT_SOURCE_DIR}/python/echolib/__init__.py
@@ -165,13 +180,12 @@ if(BUILD_PYTHON)
         ${CMAKE_CURRENT_SOURCE_DIR}/python/echolib/messages/cli.py
     )
 
-    ADD_CUSTOM_TARGET(copy_library_python ALL)
 
     ADD_CUSTOM_COMMAND(TARGET copy_library_python COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/python/setup.py ${BUILD_PYTHON_DIR}/)
     ADD_CUSTOM_COMMAND(TARGET copy_library_python COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/python/echolib ${BUILD_PYTHON_DIR}/echolib)
 
-    install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)
-    install(DIRECTORY python/echolib DESTINATION ${PYTHON_SITE_PACKAGES})
+    #install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)
+    #install(DIRECTORY python/echolib DESTINATION ${PYTHON_SITE_PACKAGES})
 endif()
 
 # Examples

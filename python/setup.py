@@ -43,10 +43,10 @@ class build_ext_ctypes(build_ext):
                 return c
 
         ct = self.compiler.compiler_type
-        opts = self.c_opts.get(ct, [])
+        opts = [] #self.c_opts.get(ct, [])
         #link_opts = self.l_opts.get(ct, [])
         if ct == 'unix':
-            opts.append("-std=c++11")
+            opts.append("-std=c++17")
 
         ext.include_dirs = [_realize(x) for x in ext.include_dirs]
 
@@ -91,11 +91,12 @@ if os.path.isfile(os.path.join("echolib", "pyecho" + library_suffix)):
     varargs["package_data"] = {"echolib" : ["pyecho" + library_suffix]}
     varargs["cmdclass"] = {'bdist_wheel': bdist_wheel}
     varargs["setup_requires"] = ['wheel']
-elif os.path.isfile(os.path.join("trax", "trax.c")):
-    sources = glob.glob("trax/*.c") + glob.glob("trax/*.cpp")
-    varargs["ext_modules"] = [CTypes("echolib.pyecho", sources=sources, define_macros=[("ECHOLIB_EXPORTS", "1")])]
+elif os.path.isfile(os.path.join("echolib", "echolib", "loop.h")):
+    sources = glob.glob("echolib/echolib/*.cpp")
+    varargs["ext_modules"] = [CTypes("echolib.pyecho", sources=sources, include_dirs=[os.path.join(root, "echolib")], define_macros=[("ECHOLIB_EXPORTS", "1")])]
     varargs["cmdclass"] = {'build_ext': build_ext_ctypes}
     varargs["setup_requires"] = ["pybind11>=2.5.0", "numpy>=1.16"]
+    varargs["package_data"] = {}
 
 varargs["package_data"]['echolib.messages.library'] = ['*.msg']
 varargs["package_data"]['echolib.messages.templates'] = ['*.tpl']

@@ -157,12 +157,16 @@ if(BUILD_PYTHON)
         set_target_properties(pyecho PROPERTIES PREFIX "")
         target_include_directories(pyecho PRIVATE ${PYTHON_INCLUDE_DIRS} ${PYBIND11_INCLUDE_DIR})
 
+        # Determine installation path
+        execute_process(COMMAND
+            ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
+            OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+        install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)
+        install(DIRECTORY python/echolib DESTINATION ${PYTHON_SITE_PACKAGES})
+
     ENDIF()
 
-    # Determine installation path
-    #execute_process(COMMAND
-    #    ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
-    #    OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
     SET(SOURCES_PY 
         ${CMAKE_CURRENT_SOURCE_DIR}/python/echolib/__init__.py
@@ -184,8 +188,7 @@ if(BUILD_PYTHON)
     ADD_CUSTOM_COMMAND(TARGET copy_library_python COMMAND ${CMAKE_COMMAND} -E copy_if_different ${CMAKE_CURRENT_SOURCE_DIR}/python/setup.py ${BUILD_PYTHON_DIR}/)
     ADD_CUSTOM_COMMAND(TARGET copy_library_python COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_CURRENT_SOURCE_DIR}/python/echolib ${BUILD_PYTHON_DIR}/echolib)
 
-    #install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)
-    #install(DIRECTORY python/echolib DESTINATION ${PYTHON_SITE_PACKAGES})
+
 endif()
 
 # Examples

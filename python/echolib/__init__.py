@@ -174,8 +174,8 @@ class Header(object):
 
     @staticmethod
     def write(writer, obj):
-        writeType(str, obj.source)
-        writeType(datetime.datetime, obj.timestamp)
+        writeType(str, writer, obj.source)
+        writeType(datetime.datetime, writer, obj.timestamp)
 
 registerType(Header, Header.read, Header.write)
 

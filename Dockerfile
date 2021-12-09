@@ -14,7 +14,7 @@ WORKDIR /tmp
 
 RUN git clone https://github.com/pybind/pybind11.git && cd pybind11 && mkdir build && cd build && cmake -DPYBIND11_TEST=OFF -DPYBIND11_INSTALL=ON .. && make -j install
 
-RUN git clone https://github.com/vicoslab/echolib.git && cd /tmp/echolib && git checkout dev
+COPY . /tmp/echolib/
 
 RUN cd /tmp/echolib && mkdir build && cd build && \
     cmake -DBUILD_APPS=OFF -DCMAKE_INSTALL_PREFIX=/tmp/install .. && make -j && make install

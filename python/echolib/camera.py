@@ -48,7 +48,7 @@ class CameraExtrinsics(object):
 
     @staticmethod
     def write(writer, obj):
-        _echo.writeType(echolib.Header, obj.header)
+        echolib.writeType(echolib.Header, obj.header)
         _echo.writeTensor(writer, obj.rotation)
         _echo.writeTensor(writer, obj.translation)
 
@@ -71,7 +71,7 @@ class Frame(object):
 
     @staticmethod
     def write(writer, obj):
-        _echo.writeType(echolib.Header, obj.header)
+        echolib.writeType(echolib.Header, obj.header)
         _echo.writeTensor(writer, obj.image)
 
 echolib.registerType(Frame, Frame.read, Frame.write)

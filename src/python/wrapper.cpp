@@ -145,7 +145,6 @@ public:
 
             auto ref = static_cast<SharedTensor*>(capsule);
 
-            
             value = SharedTensor(*ref);
 
             //std::cout << "Capsule " << (ref) << " " << (void *) value->get_data() << std::endl;
@@ -395,7 +394,7 @@ PYBIND11_MODULE(pyecho, m) {
     .def(py::init());
 
     py::class_<Publisher, std::shared_ptr<Publisher> >(m, "Publisher")
-    .def(py::init<SharedClient, string, string>())
+    .def(py::init<SharedClient, string, string, int>(), py::arg("client"), py::arg("channel"), py::arg("type"), py::arg("queue") = (int) -1)
     .def("send", [](Publisher &p, uchar* data, int size) {
         py::gil_scoped_release gil; // release GIL lock
         return p.send_message(data, size);

@@ -127,8 +127,8 @@ class FrameSubscriber(echolib.Subscriber):
 
 class FramePublisher(echolib.Publisher):
 
-    def __init__(self, client, alias):
-        super().__init__(client, alias, "camera frame")
+    def __init__(self, client, alias, queue=1):
+        super().__init__(client, alias, "camera frame", queue)
 
     def send(self, obj):
         writer = echolib.MessageWriter()

@@ -1,13 +1,23 @@
 
+import os
+import argparse
 import sys
 
 def main():
     from echolib import router
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-v", "--verbose", action="store_true", default=False)
+    parser.add_argument("bind", nargs='?', default=os.environ.get("ECHO_SOCKET", "/tmp/echo.sock"))
+
     try:
-        if len(sys.argv) > 1:
-            router(sys.argv[1])
-        else:
-            router()
+        args = parser.parse_args()
+    except argparse.ArgumentError:
+        parser.print_help()
+        sys.exit(-1)
+
+    try:
+        router(args.bind, args.verbose)
     except KeyboardInterrupt:
         pass
 

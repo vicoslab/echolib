@@ -34,10 +34,24 @@ class IOBase : public std::enable_shared_from_this<IOBase> {
 public:
 	virtual ~IOBase() {};
 
+	/**
+	 * Returns the file descriptor associated with the IOBase, must be already configired for nonblocking transfer.
+	 * 
+	 */
 	virtual int get_file_descriptor() = 0;
 
+	/**
+	 * Called when handling reading from the file. Returns true if everyting is OK or false if there is an error and the
+	 * file should be closed.
+	 * 
+	 */
 	virtual bool handle_input() = 0;
 
+	/**
+	 * Called when handling writing to the file. Returns true if no more writing is needed or false if more data
+	 * is available once the buffer is free.
+	 * 
+	 */
 	virtual bool handle_output() = 0;
 
 	virtual void disconnect() = 0;

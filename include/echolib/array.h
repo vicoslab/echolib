@@ -7,10 +7,6 @@
 using namespace std;
 using namespace echolib;
 
-#ifdef BUILD_OPENCV
-#include <opencv2/opencv.hpp>
-#endif
-
 #ifdef CV_VERSION_MAJOR
 #define __ECHOLIB_HAS_OPENCV 1
 #endif

@@ -105,10 +105,10 @@ std::string format_string(char const* fmt, ...) {
     return msg; 
 }
 
-void print_buffer(uint8_t* buffer, size_t length) {
+void print_buffer(ostream& output, uint8_t* buffer, size_t length) {
 
     for (size_t i = 0; i < length; i++) { 
-        std::cout << format_string(" %04d: (%#04X) %*d %c", (int) (i), buffer[i], 4, buffer[i], (int) buffer[i]) << std::endl; 
+        output << format_string(" %04d: (%#04X) %*d %c", (int) (i), buffer[i], 4, buffer[i], (int) buffer[i]) << std::endl; 
     }
 
 }

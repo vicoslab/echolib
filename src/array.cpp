@@ -6,6 +6,10 @@
 #include <cmath>
 #include <type_traits>
 
+#ifdef BUILD_OPENCV
+#include <opencv2/opencv.hpp>
+#endif
+
 #include "debug.h"
 #include <echolib/array.h>
 

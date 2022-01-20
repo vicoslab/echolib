@@ -9,6 +9,10 @@
 #include <functional>
 #include <vector>
 
+#if __cplusplus > 199711L
+#define register      // Deprecated in C++11.
+#endif
+
 namespace echolib {
 
 /*

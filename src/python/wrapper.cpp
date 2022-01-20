@@ -407,13 +407,11 @@ PYBIND11_MODULE(pyecho, m) {
     py::class_<MemoryBuffer, std::shared_ptr<MemoryBuffer> >(m, "MemoryBuffer")
     .def("size", &MemoryBuffer::get_length, "Get message length");
 
-    py::class_<Message, std::shared_ptr<Message> >(m, "Message")
-    .def("getChannel", &Message::get_channel, "Get channel");
+    py::class_<Message, std::shared_ptr<Message> >(m, "Message");
 
     py::class_<BufferedMessage, Message, MemoryBuffer, std::shared_ptr<BufferedMessage> >(m, "BufferedMessage")
-    .def(py::init<uchar*, size_t, bool>())
-    .def("getChannel", &BufferedMessage::get_channel, "Get channel");
-
+    .def(py::init<uchar*, size_t, bool>());
+    
     py::class_<MessageReader>(m, "MessageReader")
     .def(py::init<SharedMessage>())
     .def("readShort", &MessageReader::read_short, "Read a short")

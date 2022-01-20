@@ -16,303 +16,307 @@
 
 using namespace std;
 
-namespace std {
+namespace std
+{
 
-template<typename Callback, typename Function> inline
-bool func_compare(const Function &lhs, const Function &rhs) {
-    typedef typename conditional
-    <
-    is_function<Callback>::value,
-                typename add_pointer<Callback>::type,
-                Callback
-                >::type request_type;
+    template <typename Callback, typename Function>
+    inline bool func_compare(const Function &lhs, const Function &rhs)
+    {
+        typedef typename conditional<
+            is_function<Callback>::value,
+            typename add_pointer<Callback>::type,
+            Callback>::type request_type;
 
-    if (const request_type *lhs_internal = lhs.template target<request_type>())
-        if (const request_type *rhs_internal = rhs.template target<request_type>())
-            return *rhs_internal == *lhs_internal;
-    return false;
-}
-
-template<typename function_signature>
-struct function_comparable: function<function_signature> {
-    typedef function<function_signature> Function;
-    bool (*type_holder)(const Function &, const Function &);
-public:
-    function_comparable() {}
-    template<typename Func> function_comparable(Func f)
-        : Function(f), type_holder(func_compare<Func, Function>) {
+        if (const request_type *lhs_internal = lhs.template target<request_type>())
+            if (const request_type *rhs_internal = rhs.template target<request_type>())
+                return *rhs_internal == *lhs_internal;
+        return false;
     }
-    template<typename Func> function_comparable &operator=(Func f) {
-        Function::operator=(f);
-        type_holder = func_compare<Func, Function>;
-        return *this;
-    }
-    friend bool operator==(const Function &lhs, const function_comparable &rhs) {
-        return rhs.type_holder(lhs, rhs);
-    }
-    friend bool operator==(const function_comparable &lhs, const Function &rhs) {
-        return rhs == lhs;
-    }
-    friend void swap(function_comparable &lhs, function_comparable &rhs) { // noexcept
-        lhs.swap(rhs);
-        lhs.type_holder.swap(rhs.type_holder);
-    }
-};
 
-}
+    template <typename function_signature>
+    struct function_comparable : function<function_signature>
+    {
+        typedef function<function_signature> Function;
+        bool (*type_holder)(const Function &, const Function &);
 
-namespace echolib {
-
-class Client;
-class Subscriber;
-class Publisher;
-class Watcher;
-typedef std::shared_ptr<Subscriber> SharedSubscriber;
-typedef std::shared_ptr<Publisher> SharedPublisher;
-typedef std::shared_ptr<Watcher> SharedWatcher;
-typedef std::shared_ptr<Client> SharedClient;
-
-typedef std::shared_ptr<std::function<void(SharedDictionary)> > WatchCallback;
-typedef std::shared_ptr<std::function<void(SharedMessage)> > DataCallback;
-
-template<class F> DataCallback create_data_callback(F f) {
-    return DataCallback(new std::function<void(SharedMessage)>(f));
-}
-
-template<class F> WatchCallback create_watch_callback(F f) {
-    return WatchCallback(new std::function<void(SharedDictionary)>(f));
-}
-
-class Client : public IOBase, public MessageHandler {
-    friend Subscriber;
-    friend Publisher;
-    friend Watcher;
-public:
-
-    Client(const string& name = "", const string& address = "");
-    virtual ~Client();
-
-    virtual bool handle_input();
-
-    virtual bool handle_output();
-
-    bool is_connected();
-
-    virtual void disconnect();
-
-    int get_queue_size();
-
-    virtual int get_file_descriptor();
-
-
-protected:
-
-    bool unsubscribe(int channel, const DataCallback &callback);
-    bool subscribe(int channel, const DataCallback &callback);
-    bool watch(int channel, const WatchCallback &callback);
-    bool unwatch(int channel, const WatchCallback &callback);
-    void send(SharedMessage message, MessageCallback callback = NULL, int priority = 0);
-    void lookup_channel(const string &alias, const string &type, function<void(SharedDictionary)> callback, bool create = true);
-
-private:
-
-    static const int TYPE_LOCAL;
-    static const int TYPE_INET;
-
-    void initialize_common();
-
-    void send_command(SharedDictionary command, function<bool(SharedDictionary, SharedDictionary)> callback = NULL);
-
-    bool handle_subscribe_response (SharedDictionary sent, SharedDictionary received);
-    void handle_message(SharedMessage &message);
-
-    int fd;
-    bool connected;
-    StreamWriter writer;
-    StreamReader reader;
-
-    int next_request_key;
-
-    map<int, pair<SharedDictionary, function<bool(SharedDictionary, SharedDictionary)> > > requests;
-
-    map<int, set<DataCallback> > subscriptions;
-    map<int, set<WatchCallback> > watches;
-
-    map<string, string> mappings;
-
-};
-
-SharedClient connect(const string& socket = string(), const string& name = string(), SharedIOLoop loop = default_loop());
-
-class Subscriber : public MessageHandler {
-    friend Client;
-public:
-    Subscriber(SharedClient client, const string &alias, const string &type = string(), DataCallback callback = NULL, int pending_capacity = 10);
-
-    virtual ~Subscriber();
-
-    virtual void on_message(SharedMessage message);
-
-    virtual void on_error(const std::exception& error);
-
-    bool subscribe();
-
-    bool unsubscribe();
-
-protected:
-
-    virtual void on_ready();
-
-private:
-    DataCallback internal_callback;
-
-    DataCallback callback;
-
-    void lookup_callback(SharedDictionary lookup);
-
-    void data_callback(SharedMessage message);
-
-    SharedClient client;
-    int id = -1;
-
-    class ChunkList : public vector<SharedMessage> {
     public:
-        ChunkList(int length, int chunk_size);
-
-        virtual ~ChunkList();
-
-        bool set_chunk(int index, SharedMessage &message);
-
-        bool is_complete() const;
-
-        int chunks() const;
-
-    private:
-
-        int chunk_size;
-
+        function_comparable() {}
+        template <typename Func>
+        function_comparable(Func f)
+            : Function(f), type_holder(func_compare<Func, Function>)
+        {
+        }
+        template <typename Func>
+        function_comparable &operator=(Func f)
+        {
+            Function::operator=(f);
+            type_holder = func_compare<Func, Function>;
+            return *this;
+        }
+        friend bool operator==(const Function &lhs, const function_comparable &rhs)
+        {
+            return rhs.type_holder(lhs, rhs);
+        }
+        friend bool operator==(const function_comparable &lhs, const Function &rhs)
+        {
+            return rhs == lhs;
+        }
+        friend void swap(function_comparable &lhs, function_comparable &rhs)
+        { // noexcept
+            lhs.swap(rhs);
+            lhs.type_holder.swap(rhs.type_holder);
+        }
     };
 
-    int pending_capacity;
+}
 
-    map<int64_t, shared_ptr<ChunkList> > pending;
+namespace echolib
+{
 
+    class Client;
+    class Subscriber;
+    class Publisher;
+    class Watcher;
+    typedef std::shared_ptr<Subscriber> SharedSubscriber;
+    typedef std::shared_ptr<Publisher> SharedPublisher;
+    typedef std::shared_ptr<Watcher> SharedWatcher;
+    typedef std::shared_ptr<Client> SharedClient;
 
-};
+    typedef std::shared_ptr<std::function<void(SharedDictionary)>> WatchCallback;
+    typedef std::shared_ptr<std::function<void(SharedMessage)>> DataCallback;
 
-class Watcher {
-public:
-    Watcher(SharedClient client, const string &alias);
+    template <class F>
+    DataCallback create_data_callback(F f)
+    {
+        return DataCallback(new std::function<void(SharedMessage)>(f));
+    }
 
-    virtual ~Watcher();
+    template <class F>
+    WatchCallback create_watch_callback(F f)
+    {
+        return WatchCallback(new std::function<void(SharedDictionary)>(f));
+    }
 
-    virtual void on_event(SharedDictionary message) = 0;
+    class Client : public IOBase
+    {
+        friend Subscriber;
+        friend Publisher;
+        friend Watcher;
 
-    virtual void on_error(const std::exception& error) {};
+    public:
+        Client(const string &name = "", const string &address = "");
+        virtual ~Client();
 
-    bool watch();
+        virtual bool handle_input();
 
-    bool unwatch();
+        virtual bool handle_output();
 
-protected:
+        bool is_connected();
 
-    virtual void on_ready();
+        virtual void disconnect();
 
-private:
-    WatchCallback callback;
+        int get_queue_size();
 
-    void lookup_callback(SharedDictionary lookup);
+        virtual int get_file_descriptor();
 
-    SharedClient client;
-    int id = -1;
+    protected:
+        bool unsubscribe(int channel, const DataCallback &callback);
+        bool subscribe(int channel, const DataCallback &callback);
+        bool watch(int channel, const WatchCallback &callback);
+        bool unwatch(int channel, const WatchCallback &callback);
+        void send(int channel, SharedMessage message, MessageCallback callback = NULL, int priority = 0);
+        void lookup_channel(const string &alias, const string &type, function<void(SharedDictionary)> callback, bool create = true);
 
-};
+    private:
+        static const int TYPE_LOCAL;
+        static const int TYPE_INET;
+
+        void initialize_common();
+
+        void send_command(SharedDictionary command, function<bool(SharedDictionary, SharedDictionary)> callback = NULL);
+
+        bool handle_subscribe_response(SharedDictionary sent, SharedDictionary received);
+        void handle_message(int channel, SharedMessage &message);
+
+        int fd;
+        bool connected;
+        StreamWriter writer;
+        StreamReader reader;
+
+        int next_request_key;
+
+        map<int, pair<SharedDictionary, function<bool(SharedDictionary, SharedDictionary)>>> requests;
+
+        map<int, set<DataCallback>> subscriptions;
+        map<int, set<WatchCallback>> watches;
+
+        map<string, string> mappings;
+    };
+
+    SharedClient connect(const string &socket = string(), const string &name = string(), SharedIOLoop loop = default_loop());
+
+    class Subscriber
+    {
+        friend Client;
+
+    public:
+        Subscriber(SharedClient client, const string &alias, const string &type = string(), DataCallback callback = NULL, int pending_capacity = 10);
+
+        virtual ~Subscriber();
+
+        virtual void on_message(SharedMessage message);
+
+        virtual void on_error(const std::exception &error);
+
+        bool subscribe();
+
+        bool unsubscribe();
+
+    protected:
+        virtual void on_ready();
+
+    private:
+        DataCallback internal_callback;
+
+        DataCallback callback;
+
+        void lookup_callback(SharedDictionary lookup);
+
+        void data_callback(SharedMessage message);
+
+        SharedClient client;
+        int id = -1;
+
+        class ChunkList : public vector<SharedMessage>
+        {
+        public:
+            ChunkList(int length, int chunk_size);
+
+            virtual ~ChunkList();
+
+            bool set_chunk(int index, SharedMessage &message);
+
+            bool is_complete() const;
+
+            int chunks() const;
+
+        private:
+            int chunk_size;
+        };
+
+        int pending_capacity;
+
+        map<int64_t, shared_ptr<ChunkList>> pending;
+    };
+
+    class Watcher
+    {
+    public:
+        Watcher(SharedClient client, const string &alias);
+
+        virtual ~Watcher();
+
+        virtual void on_event(SharedDictionary message) = 0;
+
+        virtual void on_error(const std::exception &error){};
+
+        bool watch();
+
+        bool unwatch();
+
+    protected:
+        virtual void on_ready();
+
+    private:
+        WatchCallback callback;
+
+        void lookup_callback(SharedDictionary lookup);
+
+        SharedClient client;
+        int id = -1;
+    };
 
 #define DEFAULT_CHUNK_SIZE 10 * 1024
 
-class Publisher : public MessageHandler {
-    friend Client;
-public:
-    Publisher(SharedClient client, const string &alias, const string &type = string(), int queue = -1, size_t chunk_size = DEFAULT_CHUNK_SIZE);
+    class Publisher
+    {
+        friend Client;
 
-    virtual ~Publisher();
-
-    bool send_message(uchar* data, int length);
-
-    bool send_message(MessageWriter& writer);
-
-protected:
-
-    virtual void on_ready();
-
-    int get_channel_id();
-
-    template<typename T> bool send_message(const T &data) {
-
-        if (get_channel_id() <= 0)
-            return false;
-
-        SharedMessage message = Message::pack<T>(data);
-        MessageHandler::set_channel(message, get_channel_id());
-
-        return send_message_internal(message);
-
-    }
-
-    virtual bool send_message_internal(SharedMessage message);
-
-private:
-
-    void lookup_callback(const string alias, SharedDictionary lookup);
-
-    void send_callback(const SharedMessage message, int state);
-
-    SharedClient client;
-    int id = -1;
-    int queue;
-
-    int pending = 0;
-
-    class ProxyBuffer : public Buffer {
     public:
-        ProxyBuffer(SharedMessage parent, size_t start, size_t length);
+        Publisher(SharedClient client, const string &alias, const string &type = string(), int queue = -1, size_t chunk_size = DEFAULT_CHUNK_SIZE);
 
-        virtual ~ProxyBuffer();
+        virtual ~Publisher();
 
-        virtual size_t get_length() const;
+        bool send_message(uchar *data, int length);
 
-        virtual size_t copy_data(size_t position, uchar* buffer, size_t length) const;
+        bool send_message(MessageWriter &writer);
+
+    protected:
+        virtual void on_ready();
+
+        int get_channel_id();
+
+        template <typename T>
+        bool send_message(const T &data)
+        {
+
+            if (get_channel_id() <= 0)
+                return false;
+
+            return send_message_internal(Message::pack<T>(data), get_channel_id());
+        }
+
+        virtual bool send_message_internal(SharedMessage message, int channel);
 
     private:
+        void lookup_callback(const string alias, SharedDictionary lookup);
 
-        SharedMessage parent;
-        size_t start;
-        size_t length;
+        void send_callback(const SharedMessage message, int state);
 
+        SharedClient client;
+        int id = -1;
+        int queue;
+
+        int pending = 0;
+
+        class ProxyBuffer : public Buffer
+        {
+        public:
+            ProxyBuffer(SharedMessage parent, size_t start, size_t length);
+
+            virtual ~ProxyBuffer();
+
+            virtual size_t get_length() const;
+
+            virtual size_t copy_data(size_t position, uchar *buffer, size_t length) const;
+
+        private:
+            SharedMessage parent;
+            size_t start;
+            size_t length;
+        };
+
+        size_t chunk_size;
+
+        function<int64_t()> identifier_generator;
     };
 
-    size_t chunk_size;
+    class SubscriptionWatcher : public Watcher
+    {
+    public:
+        SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback = NULL);
 
-    function<int64_t()> identifier_generator;
+        virtual ~SubscriptionWatcher();
 
-};
+        virtual void on_event(SharedDictionary message);
 
-class SubscriptionWatcher : public Watcher {
-public:
-    SubscriptionWatcher(SharedClient client, const string &alias, function<void(int)> callback = NULL);
+        int get_subscribers() const;
 
-    virtual ~SubscriptionWatcher();
+    private:
+        function<void(int)> callback;
 
-    virtual void on_event(SharedDictionary message);
-
-    int get_subscribers() const;
-
-private:
-    function<void(int)> callback;
-
-    int subscribers;
-
-};
+        int subscribers;
+    };
 
 }
 

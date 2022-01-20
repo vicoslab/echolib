@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <assert.h>
 
+#include <iostream>
+
 using namespace std;
 
 #define SHORT_FILE (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
@@ -44,7 +46,7 @@ void tic();
 
 void toc();
 
-void print_buffer(uint8_t* buffer, size_t length);
+void print_buffer(ostream& output, uint8_t* buffer, size_t length);
 
 std::string format_string(char const* fmt, ...) __attribute__((format(printf,1,2)));
 

@@ -54,6 +54,7 @@ set(ECHO_SRC
 set(ECHO_HEADERS 
     include/echolib/loop.h
     include/echolib/client.h
+    include/echolib/camera.h
     include/echolib/server.h
     include/echolib/routing.h
     include/echolib/message.h
@@ -159,7 +160,8 @@ if(BUILD_PYTHON)
 
         # Determine installation path
         execute_process(COMMAND
-            ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
+            #${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
+            ${PYTHON_EXECUTABLE} -c "import sys; print([x for x in sys.path if x.startswith('${CMAKE_INSTALL_PREFIX}')][0]) "
             OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
         install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)

@@ -1,5 +1,13 @@
 # -*- Mode: Python; indent-tabs-mode: nil; c-basic-offset: 4; tab-width: 4 -*-
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
+from builtins import object
 import sys
 import echolib
 from echolib.camera import FrameSubscriber
@@ -19,7 +27,7 @@ except ImportError:
 
 def main():
 
-    class FrameCollector:
+    class FrameCollector(object):
 
         def __init__(self):
             self.frame = None

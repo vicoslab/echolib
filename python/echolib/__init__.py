@@ -1,4 +1,14 @@
+from __future__ import print_function
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import unicode_literals
 
+from builtins import int
+from builtins import super
+from builtins import range
+from builtins import str
+from future import standard_library
+standard_library.install_aliases()
 try:
     import echolib.pyecho as _echo
 except ImportError as ie:
@@ -200,20 +210,26 @@ class DictionaryPublisher(_echo.Publisher):
 
 class SubscriptionWatcher(_echo.Watcher):
 
-    def __init__(self, client, alias, callback, watch=True):
+    def __init__(self, client, alias, callback=None, watch=True):
         super().__init__(client, alias)
-        self._callback = callback
-        if watch:
-            self.watch()
+        #self._callback = callback
+        #self._subscribers = 0
+        #if watch:
+        #    self.watch()
 
     def on_event(self, message):
-        mtype = message.get("type", "")
+        print("event", message)
+        #mtype = message.get("type", "")
 
-        if mtype == "subscribe" or mtype == "unsubscribe" or mtype == "summary":
-            try:
-                subscribers = int(message.get("subscribers", 0))
-            except ValueError:
-                subscribers = 0
+        #if mtype == "subscribe" or mtype == "unsubscribe" or mtype == "summary":
+        #    try:
+        #        self._subscribers = int(message.get("subscribers", 0))
+        #    except ValueError:
+        #        self._subscribers = 0
 
-            if self._callback is not None:
-                self._callback(subscribers)
+            #if self._callback is not None:
+            #    self._callback(self._subscribers)
+
+    @property
+    def subscribers(self):
+        return self._subscribers

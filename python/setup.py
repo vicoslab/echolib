@@ -82,6 +82,7 @@ try:
             # We don't contain any python source
             python, abi = 'py2.py3', 'none'
             return python, abi, plat
+
 except ImportError:
     bdist_wheel = None
 
@@ -97,6 +98,7 @@ elif os.path.isfile(os.path.join("echolib", "echolib", "loop.h")):
     varargs["cmdclass"] = {'build_ext': build_ext_ctypes}
     varargs["setup_requires"] = ["pybind11>=2.5.0", "numpy>=1.16"]
     varargs["package_data"] = {}
+    varargs["exclude_package_data"] = {'echolib.pyecho': ['*.cpp']}
 
 varargs["package_data"]['echolib.messages.library'] = ['*.msg']
 varargs["package_data"]['echolib.messages.templates'] = ['*.tpl']
@@ -112,13 +114,16 @@ setup(
     packages=setuptools.find_packages(),
     include_package_data=True,
     python_requires='>=3.6',
-    install_requires=["numpy>=1.16", "jinja2", "pyparsing"],
+    install_requires=["numpy>=1.16", "jinja2", "pyparsing", "future"],
     zip_safe=False,
     entry_points={
         'console_scripts': [
             'echodaemon = echolib.__main__:main',
             'echorouter = echolib.__main__:main',
             'echogenerate = echolib.messages.cli:main',
+        ],
+        'ignition': [
+            'echolib_remap = echolib.ignition:Mapping',
         ],
     },
     **varargs

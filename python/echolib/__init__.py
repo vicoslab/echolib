@@ -8,6 +8,8 @@ from builtins import super
 from builtins import range
 from builtins import str
 from future import standard_library
+from future.utils import bytes_to_native_str
+
 standard_library.install_aliases()
 try:
     import echolib.pyecho as _echo
@@ -22,9 +24,9 @@ Subscriber = _echo.Subscriber
 MessageReader = _echo.MessageReader
 MessageWriter = _echo.MessageWriter
 
-double = type('double', (), {})
-char = type('char', (), {})
-long = type('long', (), {})
+double = type(bytes_to_native_str(b'double'), (), {})
+char = type(bytes_to_native_str(b'char'), (), {})
+long = type(bytes_to_native_str(b'long'), (), {})
 
 _type_registry = {}
 

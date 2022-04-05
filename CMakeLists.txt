@@ -150,8 +150,10 @@ if(BUILD_PYTHON)
     ELSE()
 
         find_path(PYBIND11_INCLUDE_DIR pybind11/pybind11.h HINTS /usr/include DOC "PyBind11 include directory")
-        find_package(PythonInterp 3 REQUIRED)
-        find_package(PythonLibs 3 REQUIRED)
+        find_package(PythonInterp 2.7 REQUIRED)
+        find_package(PythonLibs 2.7 REQUIRED)
+        #find_package(PythonInterp 3 REQUIRED)
+        #find_package(PythonLibs 3 REQUIRED)
 
         add_library(pyecho SHARED src/python/wrapper.cpp ${ECHO_SRC})
         set_target_properties(pyecho PROPERTIES LIBRARY_OUTPUT_DIRECTORY ${BUILD_PYTHON_DIR}/echolib)
@@ -160,8 +162,8 @@ if(BUILD_PYTHON)
 
         # Determine installation path
         execute_process(COMMAND
-            #${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
-            ${PYTHON_EXECUTABLE} -c "import sys; print([x for x in sys.path if x.startswith('${CMAKE_INSTALL_PREFIX}')][0]) "
+            ${PYTHON_EXECUTABLE} -c "from distutils.sysconfig import get_python_lib; print(get_python_lib(prefix='${CMAKE_INSTALL_PREFIX}'))"
+            #${PYTHON_EXECUTABLE} -c "import sys; print([x for x in sys.path if x.startswith('${CMAKE_INSTALL_PREFIX}')][0]) "
             OUTPUT_VARIABLE PYTHON_SITE_PACKAGES OUTPUT_STRIP_TRAILING_WHITESPACE)
 
         install(TARGETS pyecho DESTINATION ${PYTHON_SITE_PACKAGES}/echolib)

@@ -6,28 +6,24 @@ LABEL maintainer "luka.cehovin@protonmail.com"
 
 ENV DEBIAN_FRONTEND noninteractive
 
+RUN apt-get update && \
+    apt-get install wget software-properties-common apt-transport-https ca-certificates -y && \
+    apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 6AF7F09730B3F0A4 && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test -y && apt-add-repository 'deb https://apt.kitware.com/ubuntu/ xenial main' -y
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential cmake make git pkg-config g++ software-properties-common python-pip python-dev python-numpy-dev python-setuptools && \
+    cmake make git pkg-config g++-8 software-properties-common python-pip python-dev python-numpy-dev python-setuptools && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /tmp
 
-RUN python --version
-RUN cmake --version
-RUN gcc --version
+ENV CC="gcc-8"
+ENV CXX="g++-8"
 
 # Install gcc 8
+#RUN apt-get update -y && apt-get install gcc-8 g++-8 -y && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8 && update-alternatives --config gcc
 
-RUN apt-get update && apt-get install wget build-essential software-properties-common -y
-RUN add-apt-repository ppa:ubuntu-toolchain-r/test -y
-RUN apt-get update -y && apt-get install gcc-8 g++-8 -y && update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-8 60 --slave /usr/bin/g++ g++ /usr/bin/g++-8 && update-alternatives --config gcc
-
-# Update cmake
-
-RUN apt install libssl-dev -y
-RUN apt remove cmake -y
-RUN wget https://github.com/Kitware/CMake/releases/download/v3.23.0-rc5/cmake-3.23.0-rc5.tar.gz
-RUN tar -xf cmake-3.23.0-rc5.tar.gz && cd cmake-3.23.0-rc5 && ./bootstrap && make -j5 && make install
+RUN python --version && cmake --version && gcc-8 --version
 
 # Install pybind
 

@@ -1,7 +1,6 @@
 import sys
 import os
 import glob
-from typing import Callable
 import setuptools
 
 from setuptools import setup
@@ -37,6 +36,7 @@ class build_ext_ctypes(build_ext):
         self._ctypes = isinstance(ext, CTypes)
 
         def _realize(c):
+            from typing import Callable
             if isinstance(c, Callable):
                 return c()
             else:
@@ -67,6 +67,10 @@ class build_ext_ctypes(build_ext):
 class CTypes(Extension): 
     pass
 
+varargs = dict()
+varargs["package_data"] = {}
+varargs["cmdclass"] = {}
+
 try:
     from wheel.bdist_wheel import bdist_wheel as _bdist_wheel
 
@@ -83,21 +87,20 @@ try:
             python, abi = 'py2.py3', 'none'
             return python, abi, plat
 
-except ImportError:
-    bdist_wheel = None
-
-varargs = dict()
-
-if os.path.isfile(os.path.join("echolib", "pyecho" + library_suffix)):
-    varargs["package_data"] = {"echolib" : ["pyecho" + library_suffix]}
     varargs["cmdclass"] = {'bdist_wheel': bdist_wheel}
     varargs["setup_requires"] = ['wheel']
+
+except ImportError:
+    pass
+
+if os.path.isfile(os.path.join("echolib", "pyecho" + library_suffix)):
+    varargs["package_data"]["echolib"] = ["pyecho" + library_suffix]
+
 elif os.path.isfile(os.path.join("echolib", "echolib", "loop.h")):
     sources = glob.glob("echolib/echolib/*.cpp")
     varargs["ext_modules"] = [CTypes("echolib.pyecho", sources=sources, include_dirs=[os.path.join(root, "echolib")], define_macros=[("ECHOLIB_EXPORTS", "1")])]
     varargs["cmdclass"] = {'build_ext': build_ext_ctypes}
     varargs["setup_requires"] = ["pybind11>=2.5.0", "numpy>=1.16"]
-    varargs["package_data"] = {}
     varargs["exclude_package_data"] = {'echolib.pyecho': ['*.cpp']}
 
 varargs["package_data"]['echolib.messages.library'] = ['*.msg']

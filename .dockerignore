@@ -2,3 +2,6 @@
 .dockerignore
 build
 Dockerfile
+*.dockerfile
+docs
+tests

@@ -40,8 +40,11 @@ RUN export PYTHON_INSTALL=`python -c "from distutils.sysconfig import get_python
 
 FROM ubuntu:${UBUNTU_VERSION}
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python python-pip python-numpy && \
+RUN apt-get update && \
+    apt-get install wget software-properties-common apt-transport-https ca-certificates -y && \
+    add-apt-repository ppa:ubuntu-toolchain-r/test -y && \
+    apt-get update && apt-get install -y --no-install-recommends \
+    libstdc++6 python python-pip python-numpy python-future python-pyparsing python-jinja2  && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /tmp/install /usr/local/

@@ -1,4 +1,4 @@
-ARG UBUNTU_VERSION=18.04
+ARG UBUNTU_VERSION=20.04
 
 FROM ubuntu:${UBUNTU_VERSION} AS build
 
@@ -25,7 +25,7 @@ RUN export PYTHON_INSTALL=`python3 -c "from distutils.sysconfig import get_pytho
 FROM ubuntu:${UBUNTU_VERSION}
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 python3-pip python3-numpy && \
+    python3 python3-pip python3-numpy python-is-python3 python3-future python3-pyparsing python3-jinja2 && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /tmp/install /usr/local/

@@ -405,6 +405,9 @@ namespace echolib
             shared_ptr<Message> msg = process_buffer();
             if (msg)
                 return msg;
+
+            if (get_error())
+                break;
         }
 
         return NULL;
@@ -466,7 +469,7 @@ namespace echolib
             }
             case 5:
             {
-                if (data_length > MESSAGE_MAX_SIZE)
+                if (data_length > MESSAGE_MAX_SIZE || data_length == 0)
                 {
                     error = -1;
                     break;
@@ -501,7 +504,7 @@ namespace echolib
 
             if (error)
             {
-                reset();
+                // Return empty with error
                 return shared_ptr<Message>();
             }
 

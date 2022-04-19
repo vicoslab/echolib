@@ -30,6 +30,9 @@ int main(int argc, char** argv) {
         cerr << "Cannot open image file " << filename << endl;
         return -1;
     }
+
+    parameters.intrinsics = make_shared<Tensor>(Matx33f::eye());
+    parameters.distortion = make_shared<Tensor>((Mat_<float>(1,5) << 0, 0, 0, 0, 0));
 /*
     FileStorage fsc("calibration.xml", FileStorage::READ);
     if (fsc.isOpened()) {

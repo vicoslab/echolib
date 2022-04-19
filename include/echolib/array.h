@@ -58,7 +58,7 @@ public:
 
     static int encode_ocvtype(DataType dtype);
 
-    Tensor(cv::Mat& source);
+    Tensor(cv::Mat source);
 
     template<typename T, int m, int n> Tensor(const cv::Matx<T, m, n>& source) : Tensor({source.rows, source.cols}, decode_ocvtype(cv::DataType<T>::depth)) {
         

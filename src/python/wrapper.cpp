@@ -391,7 +391,8 @@ PYBIND11_MODULE(pyecho, m) {
     }, "Stop watching");
 
     py::class_<IOBaseObserver, PyIOBaseObserver, std::shared_ptr<IOBaseObserver> >(m, "IOBaseObserver")
-    .def(py::init());
+    .def(py::init())
+    .def("on_output", &IOBaseObserver::on_output);
 
     py::class_<Publisher, std::shared_ptr<Publisher> >(m, "Publisher")
     .def(py::init<SharedClient, string, string, int>(), py::arg("client"), py::arg("channel"), py::arg("type"), py::arg("queue") = (int) -1)

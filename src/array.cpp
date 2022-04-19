@@ -150,8 +150,7 @@ int Tensor::encode_ocvtype(DataType dtype) {
     return type;
 }
 
-
-Tensor::Tensor(cv::Mat& source) {
+Tensor::Tensor(cv::Mat source) {
 
     if (!source.isContinuous()) 
         source = source.clone(); // Copy data in case of strides

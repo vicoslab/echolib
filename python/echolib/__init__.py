@@ -18,6 +18,7 @@ except ImportError as ie:
 
 IOLoop = _echo.IOLoop
 IOBase = _echo.IOBase
+IOBaseObserver = _echo.IOBaseObserver
 Client = _echo.Client
 Publisher = _echo.Publisher
 Subscriber = _echo.Subscriber

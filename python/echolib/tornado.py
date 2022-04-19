@@ -18,6 +18,8 @@ try:
 except ImportError:
     raise ImportError("Tornado not installed")
 
+import echolib.camera as camera
+
 _encode_jpeg = None
 
 try:
@@ -123,7 +125,7 @@ class Camera(object):
         self._location_listeners = []
         self._client = client
         self._parameters = None
-        self._parameters_sub = echolib.camera.CameraIntrinsicsSubscriber(client, "%s.parameters" % name, self._parameters_callback)
+        self._parameters_sub = camera.CameraIntrinsicsSubscriber(client, "%s.parameters" % name, self._parameters_callback)
         self._location_sub = None
         self._image_sub = None
 
@@ -144,7 +146,7 @@ class Camera(object):
     def listen_images(self, listener):
         self._image_listeners.append(listener)
         if len(self._image_listeners) == 1 and self._image_sub is None:
-            self._image_sub = echolib.camera.FrameSubscriber(self._client, "%s.image" % self.name,self._frame_callback)
+            self._image_sub = camera.FrameSubscriber(self._client, "%s.image" % self.name,self._frame_callback)
 
     def unlisten_images(self, listener):
         self._image_listeners.remove(listener)
@@ -154,7 +156,7 @@ class Camera(object):
     def listen_location(self, listener):
         self._location_listeners.append(listener)
         if len(self._location_listeners) == 1 and self._location_sub is None:
-            self._location_sub = echolib.camera.CameraExtrinsicsSubscriber(self._client, "%s.location" % self.name, self._location_callback)
+            self._location_sub = camera.CameraExtrinsicsSubscriber(self._client, "%s.location" % self.name, self._location_callback)
 
     def unlisten_location(self, listener):
         self._location_listeners.remove(listener)

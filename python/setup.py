@@ -116,7 +116,7 @@ setup(
     long_description='',
     packages=setuptools.find_packages(),
     include_package_data=True,
-    python_requires='>=3.6',
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,!=3.4.*,!=3.5.*',
     install_requires=["numpy>=1.16", "jinja2", "pyparsing", "future"],
     zip_safe=False,
     entry_points={

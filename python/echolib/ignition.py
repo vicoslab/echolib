@@ -8,7 +8,7 @@ from builtins import super
 from future import standard_library
 standard_library.install_aliases()
 import collections
-from ignition.program import mergevars
+
 from ignition.plugin import Plugin
 
 class Mapping(Plugin):
